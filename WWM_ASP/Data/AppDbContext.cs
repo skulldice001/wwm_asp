@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User>               Users               => Set<User>();
     public DbSet<Staff>              Staffs              => Set<Staff>();
     public DbSet<ZooCoinTransaction> ZooCoinTransactions => Set<ZooCoinTransaction>();
+    public DbSet<LibraryArticle>     LibraryArticles     => Set<LibraryArticle>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -53,6 +54,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(t => t.RelatedUser)
              .WithMany()
              .HasForeignKey(t => t.RelatedUserId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ─── LibraryArticle ───────────────────────────────────────────────
+        model.Entity<LibraryArticle>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasQueryFilter(a => a.DeletedAt == null);
+
+            e.HasOne(a => a.Creator)
+             .WithMany()
+             .HasForeignKey(a => a.CreatedBy)
              .OnDelete(DeleteBehavior.SetNull);
         });
     }

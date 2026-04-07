@@ -1,0 +1,181 @@
+@model List<LibraryArticle>
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = "Library";
+    ViewData["ActivePage"] = "library";
+
+    var counts   = (Dictionary<string, int>)ViewBag.Counts;
+    string status   = ViewBag.Status ?? "";
+    string category = ViewBag.Category ?? "";
+    string search   = ViewBag.Search ?? "";
+    int page  = (int)ViewBag.Page;
+    int pages = (int)ViewBag.Pages;
+}
+
+<div class="card card-outline card-primary">
+    <div class="card-header d-flex align-items-center">
+        <h3 class="card-title mr-3"><i class="fas fa-book mr-1"></i> Library Articles</h3>
+        <div class="ml-auto">
+            <a href="/admin/library/create" class="btn btn-success btn-sm">
+                <i class="fas fa-plus mr-1"></i> New Article
+            </a>
+        </div>
+    </div>
+
+    <!-- Status tabs -->
+    <div class="card-header p-0 border-bottom-0">
+        <ul class="nav nav-tabs px-3">
+            <li class="nav-item">
+                <a class="nav-link @(string.IsNullOrEmpty(status) ? "active" : "")"
+                   href="/admin/library?category=@category&search=@search">
+                    All <span class="badge badge-secondary ml-1">@counts["all"]</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(status == "draft" ? "active" : "")"
+                   href="/admin/library?status=draft&category=@category&search=@search">
+                    Draft <span class="badge badge-warning ml-1">@counts["draft"]</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(status == "published" ? "active" : "")"
+                   href="/admin/library?status=published&category=@category&search=@search">
+                    Published <span class="badge badge-success ml-1">@counts["published"]</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Filters -->
+    <div class="card-header border-top-0">
+        <form method="get" action="/admin/library" class="form-inline" style="gap:8px;flex-wrap:wrap;">
+            @if (!string.IsNullOrEmpty(status))
+            {
+                <input type="hidden" name="status" value="@status">
+            }
+            <input type="text" name="search" class="form-control form-control-sm"
+                   placeholder="Search title / content..." value="@search" style="width:220px;">
+            <select name="category" class="form-control form-control-sm" style="width:200px;">
+                <option value="">All categories</option>
+                @foreach (var kv in LibraryArticle.Categories)
+                {
+                    <option value="@kv.Key" @(category == kv.Key ? "selected" : "")>@kv.Value</option>
+                }
+            </select>
+            <button class="btn btn-sm btn-primary" type="submit">
+                <i class="fas fa-search mr-1"></i> Filter
+            </button>
+            <a href="/admin/library" class="btn btn-sm btn-secondary">Clear</a>
+        </form>
+    </div>
+
+    <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0">
+            <thead>
+                <tr>
+                    <th style="width:40%">Title</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Source</th>
+                    <th>Published</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var article in Model)
+                {
+                    <tr>
+                        <td>
+                            <strong>@article.Title</strong>
+                            @if (!string.IsNullOrEmpty(article.DiscordAuthor))
+                            {
+                                <small class="text-muted d-block">
+                                    <i class="fab fa-discord"></i> @article.DiscordAuthor
+                                </small>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge badge-@article.CategoryColor">
+                                <i class="@article.CategoryIcon mr-1"></i>@article.CategoryLabel
+                            </span>
+                        </td>
+                        <td>
+                            @if (article.IsPublished)
+                            {
+                                <span class="badge badge-success">Published</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-warning">Draft</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(article.DiscordMessageId))
+                            {
+                                <span class="badge badge-light"><i class="fab fa-discord"></i></span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-light"><i class="fas fa-pencil-alt"></i></span>
+                            }
+                        </td>
+                        <td style="font-size:12px;">
+                            @(article.PublishedAt.HasValue ? article.PublishedAt.Value.ToString("dd/MM/yyyy") : "—")
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/admin/library/@article.Id/edit" class="btn btn-info btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                @if (article.IsPublished)
+                                {
+                                    <form method="post" action="/admin/library/@article.Id/unpublish" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-warning btn-sm" title="Unpublish">
+                                            <i class="fas fa-eye-slash"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post" action="/admin/library/@article.Id/publish" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-success btn-sm" title="Publish">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                }
+                                <form method="post" action="/admin/library/@article.Id/delete" class="d-inline"
+                                      onsubmit="return confirm('Delete this article?')">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-3">No articles found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (pages > 1)
+    {
+        <div class="card-footer">
+            <ul class="pagination pagination-sm mb-0">
+                @for (int i = 1; i <= pages; i++)
+                {
+                    <li class="page-item @(i == page ? "active" : "")">
+                        <a class="page-link"
+                           href="/admin/library?status=@status&category=@category&search=@search&page=@i">@i</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</div>

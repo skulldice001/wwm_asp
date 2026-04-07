@@ -1,0 +1,79 @@
+@model List<LibraryArticle>
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"]      = "Search";
+    ViewData["ActivePage"] = "library";
+    var search = (string)ViewBag.Search;
+    int page   = (int)ViewBag.Page;
+    int pages  = (int)ViewBag.Pages;
+    int total  = (int)ViewBag.Total;
+}
+
+<div style="max-width:860px;margin:0 auto;">
+    <div class="mb-4">
+        <a href="/library" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left mr-1"></i> Library
+        </a>
+    </div>
+
+    <form method="get" action="/library" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" class="form-control" value="@search"
+                   placeholder="Search articles...">
+            <div class="input-group-append">
+                <button class="btn btn-primary" type="submit">
+                    <i class="fas fa-search mr-1"></i> Search
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <p class="text-muted mb-3">
+        <strong>@total</strong> result(s) for "<strong>@search</strong>"
+    </p>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-search fa-2x mb-3 d-block"></i>
+            No articles found.
+        </div>
+    }
+    else
+    {
+        <div class="list-group">
+            @foreach (var article in Model)
+            {
+                <a href="/library/@article.Category/@article.Id" class="list-group-item list-group-item-action">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge badge-@article.CategoryColor mr-2">
+                                <i class="@article.CategoryIcon mr-1"></i>@article.CategoryLabel
+                            </span>
+                            <strong>@article.Title</strong>
+                            <p class="text-muted small mb-0 mt-1">@article.Preview()</p>
+                        </div>
+                        @if (article.PublishedAt.HasValue)
+                        {
+                            <small class="text-muted ml-3 text-nowrap">
+                                @article.PublishedAt.Value.ToString("dd/MM/yyyy")
+                            </small>
+                        }
+                    </div>
+                </a>
+            }
+        </div>
+
+        @if (pages > 1)
+        {
+            <ul class="pagination pagination-sm mt-3">
+                @for (int i = 1; i <= pages; i++)
+                {
+                    <li class="page-item @(i == page ? "active" : "")">
+                        <a class="page-link" href="?search=@Uri.EscapeDataString(search)&page=@i">@i</a>
+                    </li>
+                }
+            </ul>
+        }
+    }
+</div>

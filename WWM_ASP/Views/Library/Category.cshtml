@@ -1,0 +1,95 @@
+@model List<LibraryArticle>
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    var category = (string)ViewBag.Category;
+    var label    = LibraryArticle.Categories.GetValueOrDefault(category, category);
+    var accent   = LibraryArticle.CategoryAccents.GetValueOrDefault(category, "#9ca3af");
+    var icon     = LibraryArticle.CategoryIcons.GetValueOrDefault(category, "fas fa-book");
+    int page     = (int)ViewBag.Page;
+    int pages    = (int)ViewBag.Pages;
+    int total    = (int)ViewBag.Total;
+
+    ViewData["Title"]      = label;
+    ViewData["ActivePage"] = "library";
+}
+
+@section Styles {
+<style>
+.lib-cat-header { background:linear-gradient(135deg,#0d0000 0%,#1a0000 100%);border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;position:relative; }
+.lib-cat-stripe { position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent); }
+.lib-cat-header-inner { padding:20px 20px 16px; }
+.lib-back-btn { display:inline-block;font-size:12px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);border-radius:20px;padding:3px 10px;text-decoration:none;margin-bottom:8px;border:1px solid rgba(255,255,255,.1); }
+.lib-back-btn:hover { color:#fff;text-decoration:none; }
+.lib-cat-title { font-size:1.4rem;font-weight:800;letter-spacing:1px; }
+.lib-cat-count { font-size:12px;color:rgba(255,255,255,.35);margin-top:2px; }
+.lib-empty { text-align:center;padding:60px;color:rgba(255,255,255,.3);background:rgba(0,0,0,.3);border-radius:12px; }
+.lib-list { display:flex;flex-direction:column;gap:6px; }
+.lib-list-item { display:flex;align-items:center;gap:14px;background:#1a0a0a;border:1px solid #2e1a1a;border-radius:10px;padding:14px 18px;text-decoration:none;transition:background .15s,border-color .15s; }
+.lib-list-item:hover { background:#2a1212;border-color:#5a2020;text-decoration:none; }
+.lib-list-accent { width:3px;height:20px;border-radius:2px;flex-shrink:0;opacity:.85; }
+.lib-list-title { flex:1;font-size:14px;font-weight:600;color:#f0f0f0;line-height:1.4; }
+.lib-list-meta { font-size:11px;color:#888;white-space:nowrap;flex-shrink:0; }
+.lib-list-arrow { font-size:11px;color:#555;flex-shrink:0; }
+.lib-list-item:hover .lib-list-title { color:#fff; }
+.lib-list-item:hover .lib-list-arrow { color:#aaa; }
+</style>
+}
+
+<div class="lib-cat-header mb-4" style="--accent:@accent;">
+    <div class="lib-cat-header-inner">
+        <a href="/library" class="lib-back-btn">
+            <i class="fas fa-arrow-left mr-1"></i> Library
+        </a>
+        <div class="lib-cat-title" style="color:@accent;">
+            <i class="@icon mr-2"></i>@label
+        </div>
+        <div class="lib-cat-count">@total articles</div>
+    </div>
+    <div class="lib-cat-stripe"></div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="lib-empty">
+        <i class="fas fa-inbox fa-2x mb-2"></i><br>No articles yet.
+    </div>
+}
+else
+{
+    <div class="lib-list">
+        @foreach (var article in Model)
+        {
+            <a href="/library/@category/@article.Id" class="lib-list-item">
+                <div class="lib-list-accent" style="background:@accent;"></div>
+                <div class="lib-list-title">@article.Title</div>
+                <div class="lib-list-meta">
+                    @if (!string.IsNullOrEmpty(article.DiscordAuthor))
+                    {
+                        <i class="fab fa-discord mr-1" style="color:#5865F2;"></i>@article.DiscordAuthor
+                    }
+                    else if (article.Creator != null)
+                    {
+                        <i class="fas fa-user mr-1"></i>@article.Creator.Name
+                    }
+                    @if (article.PublishedAt.HasValue)
+                    {
+                        <span class="ml-2">@article.PublishedAt.Value.ToString("dd/MM/yyyy")</span>
+                    }
+                </div>
+                <i class="fas fa-chevron-right lib-list-arrow"></i>
+            </a>
+        }
+    </div>
+
+    @if (pages > 1)
+    {
+        <ul class="pagination pagination-sm mt-3">
+            @for (int i = 1; i <= pages; i++)
+            {
+                <li class="page-item @(i == page ? "active" : "")">
+                    <a class="page-link" href="?page=@i">@i</a>
+                </li>
+            }
+        </ul>
+    }
+}
