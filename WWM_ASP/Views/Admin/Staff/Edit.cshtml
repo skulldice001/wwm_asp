@@ -1,0 +1,73 @@
+@model Staff
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = $"Edit Staff: {Model.DisplayName}";
+    ViewData["ActivePage"] = "staff";
+
+    string[] allowedRoles = (string[])ViewBag.Roles;
+}
+
+<div class="card card-outline card-warning" style="max-width:600px;">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-user-edit mr-1"></i> Edit Staff — @Model.DisplayName
+        </h3>
+    </div>
+    <form method="post" action="/admin/staff/@Model.Id/edit">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="card-body pb-0 text-danger"></div>
+        <div class="card-body">
+            <div class="form-group">
+                <label>Account</label>
+                <input type="text" class="form-control" value="@Model.Account" readonly disabled>
+                <small class="text-muted">Account cannot be changed.</small>
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="name" class="form-control" maxlength="255"
+                       value="@Model.Name">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" maxlength="255"
+                       value="@Model.Email">
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select name="role" class="form-control">
+                    @foreach (var r in allowedRoles)
+                    {
+                        <option value="@r" @(Model.Role == r ? "selected" : "")>
+                            @(r switch
+                            {
+                                Staff.RoleMaster    => "Master",
+                                Staff.RoleAdmin     => "Admin",
+                                Staff.RoleObserver  => "Observer",
+                                Staff.RoleLibrarian => "Librarian",
+                                _                   => r,
+                            })
+                        </option>
+                    }
+                </select>
+            </div>
+            <hr>
+            <p class="text-muted small">Leave blank to keep the current password.</p>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label>New password</label>
+                    <input type="password" name="password" class="form-control">
+                </div>
+                <div class="form-group col-md-6">
+                    <label>Confirm new password</label>
+                    <input type="password" name="passwordConfirm" class="form-control">
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save mr-1"></i> Save
+            </button>
+            <a href="/admin/staff" class="btn btn-secondary ml-2">Cancel</a>
+        </div>
+    </form>
+</div>

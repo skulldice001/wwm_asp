@@ -1,0 +1,120 @@
+@model List<User>
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = "Users";
+    ViewData["ActivePage"] = "users";
+    bool showDeleted = (bool)(ViewBag.ShowDeleted ?? false);
+}
+
+<div class="card card-outline card-primary">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-users mr-1"></i> Users</h3>
+        <div class="card-tools">
+            <a href="/admin/users/create" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> New User
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Search + filter -->
+        <form method="get" class="mb-3 d-flex gap-2 align-items-center">
+            <input type="text" name="search" class="form-control form-control-sm"
+                   style="max-width:260px;" placeholder="Search account / name..."
+                   value="@ViewBag.Search">
+            <div class="custom-control custom-switch ml-3">
+                <input type="checkbox" class="custom-control-input" id="showDeleted"
+                       name="showDeleted" value="true" @(showDeleted ? "checked" : "")
+                       onchange="this.form.submit()">
+                <label class="custom-control-label" for="showDeleted">Show disabled</label>
+            </div>
+            <button class="btn btn-sm btn-secondary" type="submit">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Account</th>
+                        <th>Name</th>
+                        <th>In-game</th>
+                        <th class="text-right">Zoo-coins</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model)
+                    {
+                        <tr class="@(user.IsDeleted ? "table-secondary text-muted" : "")">
+                            <td>@user.Id</td>
+                            <td>
+                                <img src="@user.AvatarUrl" width="24" height="24"
+                                     class="rounded-circle mr-1" style="object-fit:cover;">
+                                @user.Account
+                                @if (!string.IsNullOrEmpty(user.DiscordId))
+                                {
+                                    <i class="fab fa-discord ml-1" style="color:#5865F2;" title="Discord"></i>
+                                }
+                            </td>
+                            <td>@user.Name</td>
+                            <td>@user.IngameName</td>
+                            <td class="text-right">
+                                <strong style="color:#f6c23e;">@user.ZCoins.ToString("N0")</strong>
+                                @if (user.ZCoinsFrozen > 0)
+                                {
+                                    <small class="text-muted ml-1">(❄️ @user.ZCoinsFrozen.ToString("N0"))</small>
+                                }
+                            </td>
+                            <td>
+                                @if (user.IsDeleted)
+                                {
+                                    <span class="badge badge-secondary">Disabled</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-success">Active</span>
+                                }
+                            </td>
+                            <td>@user.CreatedAt?.ToString("dd/MM/yyyy")</td>
+                            <td class="text-right">
+                                <a href="/admin/users/@user.Id" class="btn btn-xs btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                @if (user.IsDeleted)
+                                {
+                                    <form method="post" action="/admin/users/@user.Id/enable" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-xs btn-success" title="Enable">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post" action="/admin/users/@user.Id/disable" class="d-inline"
+                                          onsubmit="return confirm('Disable this user?')">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-xs btn-danger" title="Disable">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="8" class="text-center text-muted">No users found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer text-muted">
+        @Model.Count user(s) shown
+    </div>
+</div>

@@ -1,0 +1,193 @@
+@model User
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = $"User: {Model.DisplayName}";
+    ViewData["ActivePage"] = "users";
+
+    bool isMaster = User.HasClaim("role", "master");
+    bool isAdmin  = User.HasClaim("role", "master") || User.HasClaim("role", "admin");
+}
+
+<div class="row">
+    <!-- Profile card -->
+    <div class="col-md-4">
+        <div class="card card-outline card-primary">
+            <div class="card-body text-center">
+                <img src="@Model.AvatarUrl" class="rounded-circle mb-3"
+                     width="96" height="96" style="object-fit:cover;">
+                <h5>@Model.DisplayName</h5>
+                @if (!string.IsNullOrEmpty(Model.IngameName))
+                {
+                    <p class="text-muted">@Model.IngameName</p>
+                }
+                @if (Model.IsDeleted)
+                {
+                    <span class="badge badge-danger">Disabled</span>
+                }
+                else
+                {
+                    <span class="badge badge-success">Active</span>
+                }
+            </div>
+            <div class="card-footer">
+                <div class="row text-center">
+                    <div class="col">
+                        <strong style="color:#f6c23e;">@Model.ZCoins.ToString("N0")</strong>
+                        <p class="text-muted mb-0" style="font-size:11px;">Zoo-coins</p>
+                    </div>
+                    @if (Model.ZCoinsFrozen > 0)
+                    {
+                        <div class="col">
+                            <strong>@Model.ZCoinsFrozen.ToString("N0")</strong>
+                            <p class="text-muted mb-0" style="font-size:11px;">Frozen</p>
+                        </div>
+                    }
+                    <div class="col">
+                        <strong>@Model.AvailableZCoins.ToString("N0")</strong>
+                        <p class="text-muted mb-0" style="font-size:11px;">Available</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card card-outline card-secondary">
+            <div class="card-header"><h3 class="card-title">Actions</h3></div>
+            <div class="card-body">
+                @if (isAdmin)
+                {
+                    <!-- Freeze coins -->
+                    <form method="post" action="/admin/users/@Model.Id/freeze-coins" class="mb-3">
+                        @Html.AntiForgeryToken()
+                        <label class="small">Freeze coins</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" name="amount" class="form-control"
+                                   value="@Model.ZCoinsFrozen" min="0" max="@Model.ZCoins">
+                            <div class="input-group-append">
+                                <button class="btn btn-warning">❄️</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Disable / Enable -->
+                    @if (Model.IsDeleted)
+                    {
+                        <form method="post" action="/admin/users/@Model.Id/enable">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-success btn-block btn-sm">
+                                <i class="fas fa-check mr-1"></i> Enable User
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form method="post" action="/admin/users/@Model.Id/disable"
+                              onsubmit="return confirm('Disable this user?')">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-danger btn-block btn-sm mt-2">
+                                <i class="fas fa-ban mr-1"></i> Disable User
+                            </button>
+                        </form>
+                    }
+                }
+
+                @if (isMaster)
+                {
+                    <!-- Adjust coins (master only) -->
+                    <hr>
+                    <form method="post" action="/admin/users/@Model.Id/adjust-coins">
+                        @Html.AntiForgeryToken()
+                        <label class="small font-weight-bold">Adjust Zoo-coins</label>
+                        <div class="form-group mb-1">
+                            <select name="adjustType" class="form-control form-control-sm">
+                                <option value="add">+ Add</option>
+                                <option value="deduct">− Deduct</option>
+                            </select>
+                        </div>
+                        <div class="input-group input-group-sm mb-1">
+                            <input type="number" name="adjustAmount" class="form-control"
+                                   placeholder="Amount" min="1">
+                        </div>
+                        <div class="form-group mb-2">
+                            <input type="text" name="adjustNote" class="form-control form-control-sm"
+                                   placeholder="Note (optional)">
+                        </div>
+                        <button class="btn btn-primary btn-block btn-sm">Apply</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Details -->
+    <div class="col-md-8">
+        <div class="card card-outline card-info">
+            <div class="card-header"><h3 class="card-title">Profile</h3></div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <tr><th style="width:160px;">ID</th><td>@Model.Id</td></tr>
+                    <tr><th>Account</th><td>@Model.Account</td></tr>
+                    <tr><th>Name</th><td>@Model.Name</td></tr>
+                    <tr><th>Email</th><td>@Model.Email</td></tr>
+                    <tr><th>In-game name</th><td>@Model.IngameName</td></tr>
+                    <tr><th>Country</th><td>@Model.Country</td></tr>
+                    <tr><th>Discord ID</th>
+                        <td>
+                            @if (!string.IsNullOrEmpty(Model.DiscordId))
+                            {
+                                <i class="fab fa-discord mr-1" style="color:#5865F2;"></i>@Model.DiscordId
+                            }
+                        </td>
+                    </tr>
+                    <tr><th>Joined</th><td>@Model.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent transactions -->
+        @if (Model.ZCoinTransactions.Any())
+        {
+            <div class="card card-outline card-warning">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Zoo-coin Transactions</h3>
+                    <div class="card-tools">
+                        <a href="/admin/users/@Model.Id/coin-history" class="btn btn-xs btn-outline-warning">
+                            View all
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Time</th><th>Type</th><th>Amount</th>
+                                <th>Before</th><th>After</th><th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tx in Model.ZCoinTransactions)
+                            {
+                                <tr>
+                                    <td style="font-size:11px;">@tx.CreatedAt?.ToString("dd/MM HH:mm")</td>
+                                    <td>
+                                        <span class="badge @(tx.Type == "add" || tx.Type == "transfer_in" ? "badge-success" : "badge-danger")">
+                                            @tx.Type
+                                        </span>
+                                    </td>
+                                    <td>@tx.Amount.ToString("N0")</td>
+                                    <td class="text-muted">@tx.BalanceBefore.ToString("N0")</td>
+                                    <td>@tx.BalanceAfter.ToString("N0")</td>
+                                    <td style="font-size:11px;">@tx.Note</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <a href="/admin/users" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left mr-1"></i> Back to list
+        </a>
+    </div>
+</div>

@@ -1,0 +1,81 @@
+@model List<ZooCoinTransaction>
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var user = (User)ViewBag.User;
+    ViewData["Title"]      = $"Coin History: {user.DisplayName}";
+    ViewData["ActivePage"] = "users";
+    int page     = (int)ViewBag.Page;
+    int pageSize = (int)ViewBag.PageSize;
+    int total    = (int)ViewBag.Total;
+    int pages    = (int)Math.Ceiling((double)total / pageSize);
+}
+
+<div class="card card-outline card-warning">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-history mr-1"></i>
+            Zoo-coin History — @user.DisplayName
+        </h3>
+        <div class="card-tools">
+            <a href="/admin/users/@user.Id" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i> Back
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th class="text-right">Amount</th>
+                    <th class="text-right">Before</th>
+                    <th class="text-right">After</th>
+                    <th>Note</th>
+                    <th>By</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var tx in Model)
+                {
+                    <tr>
+                        <td style="font-size:11px;white-space:nowrap;">
+                            @tx.CreatedAt?.ToString("dd/MM/yyyy HH:mm")
+                        </td>
+                        <td>
+                            <span class="badge @(tx.Type is "add" or "transfer_in" or "game_win" ? "badge-success" : "badge-danger")">
+                                @tx.Type
+                            </span>
+                        </td>
+                        <td class="text-right font-weight-bold">
+                            @(tx.Type is "add" or "transfer_in" or "game_win" ? "+" : "−")@tx.Amount.ToString("N0")
+                        </td>
+                        <td class="text-right text-muted">@tx.BalanceBefore.ToString("N0")</td>
+                        <td class="text-right">@tx.BalanceAfter.ToString("N0")</td>
+                        <td style="font-size:11px;">@tx.Note</td>
+                        <td style="font-size:11px;">@tx.Staff?.DisplayName</td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No transactions.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (pages > 1)
+    {
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    @for (int i = 1; i <= pages; i++)
+                    {
+                        <li class="page-item @(i == page ? "active" : "")">
+                            <a class="page-link" href="?page=@i">@i</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    }
+</div>

@@ -1,0 +1,124 @@
+@model List<Staff>
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = "Staff";
+    ViewData["ActivePage"] = "staff";
+
+    var me          = (Staff)ViewBag.Me;
+    bool showDeleted = (bool)(ViewBag.ShowDeleted ?? false);
+}
+
+@{
+    string RoleBadge(string role) => role switch
+    {
+        Staff.RoleMaster    => "badge-danger",
+        Staff.RoleAdmin     => "badge-warning",
+        Staff.RoleObserver  => "badge-info",
+        Staff.RoleLibrarian => "badge-secondary",
+        _                   => "badge-light",
+    };
+}
+
+<div class="card card-outline card-warning">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-user-shield mr-1"></i> Staff</h3>
+        <div class="card-tools">
+            @if (me.IsAdmin)
+            {
+                <a href="/admin/staff/create" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> New Staff
+                </a>
+            }
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get" class="mb-3">
+            <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="showDeleted"
+                       name="showDeleted" value="true" @(showDeleted ? "checked" : "")
+                       onchange="this.form.submit()">
+                <label class="custom-control-label" for="showDeleted">Show disabled</label>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Account</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var staff in Model)
+                    {
+                        <tr class="@(staff.IsDeleted ? "table-secondary text-muted" : "")">
+                            <td>@staff.Id</td>
+                            <td>@staff.Account</td>
+                            <td>@staff.Name</td>
+                            <td>@staff.Email</td>
+                            <td>
+                                <span class="badge @RoleBadge(staff.Role)">@staff.RoleLabel</span>
+                            </td>
+                            <td>
+                                @if (staff.IsDeleted)
+                                {
+                                    <span class="badge badge-secondary">Disabled</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-success">Active</span>
+                                }
+                            </td>
+                            <td>@staff.CreatedAt?.ToString("dd/MM/yyyy")</td>
+                            <td class="text-right">
+                                @if (me.CanManage(staff))
+                                {
+                                    <a href="/admin/staff/@staff.Id/edit" class="btn btn-xs btn-info">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+
+                                    @if (staff.Id != me.Id)
+                                    {
+                                        @if (staff.IsDeleted)
+                                        {
+                                            <form method="post" action="/admin/staff/@staff.Id/enable" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button class="btn btn-xs btn-success" title="Enable">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <form method="post" action="/admin/staff/@staff.Id/disable" class="d-inline"
+                                                  onsubmit="return confirm('Disable this staff member?')">
+                                                @Html.AntiForgeryToken()
+                                                <button class="btn btn-xs btn-danger" title="Disable">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="8" class="text-center text-muted">No staff found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer text-muted">
+        @Model.Count staff shown
+    </div>
+</div>

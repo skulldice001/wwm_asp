@@ -1,0 +1,65 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = "Dashboard";
+    ViewData["ActivePage"] = "dashboard";
+}
+
+<div class="row">
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>@ViewBag.MembersCount</h3>
+                <p>Total Members</p>
+            </div>
+            <div class="icon"><i class="fas fa-users"></i></div>
+            <a href="/admin/users" class="small-box-footer">View all <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>@ViewBag.TotalZCoins?.ToString("N0")</h3>
+                <p>Total Zoo-coins in circulation</p>
+            </div>
+            <div class="icon"><i class="fas fa-coins"></i></div>
+            <a href="#" class="small-box-footer">&nbsp;</a>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>@ViewBag.StaffCount</h3>
+                <p>Staff Members</p>
+            </div>
+            <div class="icon"><i class="fas fa-user-shield"></i></div>
+            <a href="/admin/staff" class="small-box-footer">View all <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3>@ViewBag.TransactionsToday</h3>
+                <p>Transactions today</p>
+            </div>
+            <div class="icon"><i class="fas fa-exchange-alt"></i></div>
+            <a href="#" class="small-box-footer">&nbsp;</a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-info-circle mr-1"></i> System Info</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    <i class="fab fa-microsoft mr-1"></i> Running on ASP.NET Core 9<br>
+                    <i class="fas fa-database mr-1"></i> PostgreSQL via Entity Framework Core<br>
+                    <i class="fas fa-clock mr-1"></i> Server time: @DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss") UTC
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
