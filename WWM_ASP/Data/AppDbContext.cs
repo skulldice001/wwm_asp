@@ -12,6 +12,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Event>              Events              => Set<Event>();
     public DbSet<EventParticipant>   EventParticipants   => Set<EventParticipant>();
 
+    // Entertainment tables
+    public DbSet<PokerTable>     PokerTables     => Set<PokerTable>();
+    public DbSet<TaixiuTable>    TaixiuTables    => Set<TaixiuTable>();
+    public DbSet<BlackjackTable> BlackjackTables => Set<BlackjackTable>();
+    public DbSet<BingoTable>     BingoTables     => Set<BingoTable>();
+    public DbSet<TienLenTable>   TienLenTables   => Set<TienLenTable>();
+    public DbSet<LotteryDraw>    LotteryDraws    => Set<LotteryDraw>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
