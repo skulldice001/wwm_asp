@@ -1,0 +1,544 @@
+@model TaixiuTable
+@using System.Security.Claims
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"]      = $"{Model.Name} – Tài Xỉu";
+    ViewData["ActivePage"] = "entertainment";
+
+    long myUserId  = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    int  myBalance = (ViewBag.CurrentUser is WWM_ASP.Models.User u) ? u.AvailableZCoins
+                     : int.TryParse(User.FindFirst("z_coins")?.Value, out var z) ? z : 0;
+}
+
+@section Styles {
+<style>
+body { background: #1a1a2e; }
+.tx-room { display:flex; gap:14px; min-height:calc(100vh - 200px); }
+.tx-main  { flex:1; display:flex; flex-direction:column; gap:12px; min-width:0; }
+.tx-side  { width:230px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+
+.tx-card {
+    background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.12);
+    border-radius:12px; color:#ddd; overflow:hidden;
+}
+.tx-card-header {
+    background:rgba(0,0,0,.35); border-bottom:1px solid rgba(255,255,255,.08);
+    padding:10px 16px; font-weight:700; font-size:13px; color:#fff;
+}
+
+/* Countdown */
+.tx-countdown { padding:10px 16px; }
+.tx-countdown-bar { height:8px; background:rgba(255,255,255,.1); border-radius:4px; overflow:hidden; }
+.tx-countdown-fill { height:100%; border-radius:4px; transition:width 1s linear; }
+
+/* Dice display */
+.tx-dice-area { padding:20px; text-align:center; min-height:100px; display:flex; align-items:center; justify-content:center; gap:16px; }
+.die {
+    width:64px; height:64px; border-radius:10px;
+    background:linear-gradient(145deg,#fff,#ddd);
+    display:flex; align-items:center; justify-content:center;
+    font-size:40px; line-height:1;
+    box-shadow:0 4px 12px rgba(0,0,0,.5);
+    transition:transform .3s;
+}
+.die.rolling { animation:diceRoll .6s ease-in-out infinite alternate; }
+@@keyframes diceRoll {
+    from { transform:rotate(-15deg) scale(1.0); }
+    to   { transform:rotate( 15deg) scale(1.1); }
+}
+.tx-outcome { text-align:center; padding:10px; font-size:22px; font-weight:900; border-radius:8px; margin:0 20px; }
+.tx-outcome.tai    { background:rgba(46,204,113,.15); color:#2ecc71; border:1px solid #2ecc7155; }
+.tx-outcome.xiu    { background:rgba(52,152,219,.15); color:#3498db; border:1px solid #3498db55; }
+.tx-outcome.triple { background:rgba(231,76,60,.15);  color:#e74c3c; border:1px solid #e74c3c55; }
+.tx-my-result { text-align:center; padding:14px; margin:0 0 8px; border-radius:8px; font-weight:800; font-size:18px; }
+.tx-my-result.win    { background:rgba(46,204,113,.15); color:#2ecc71; }
+.tx-my-result.lose   { background:rgba(231,76,60,.12);  color:#e74c3c; }
+.tx-my-result.triple { background:rgba(231,76,60,.12);  color:#e74c3c; }
+
+/* Bet panel */
+.tx-bet-panel { padding:14px 16px; }
+.tx-choice-btns { display:flex; gap:8px; margin-bottom:10px; }
+.tx-choice-btn { flex:1; padding:12px 0; border:2px solid transparent; border-radius:8px; font-weight:800; font-size:15px; cursor:pointer; transition:all .2s; }
+.tx-choice-btn.tai { background:rgba(46,204,113,.12); border-color:#2ecc7155; color:#2ecc71; }
+.tx-choice-btn.tai.active { background:#2ecc71; color:#000; border-color:#2ecc71; }
+.tx-choice-btn.xiu { background:rgba(52,152,219,.12); border-color:#3498db55; color:#3498db; }
+.tx-choice-btn.xiu.active { background:#3498db; color:#fff; border-color:#3498db; }
+.tx-shortcuts { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px; }
+.tx-shortcut { background:rgba(255,255,255,.1); border:none; color:#fff; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer; }
+.tx-shortcut:hover { background:rgba(255,255,255,.2); }
+.tx-amount-row { display:flex; gap:8px; align-items:center; }
+.tx-amount-row input { flex:1; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:#fff; border-radius:6px; padding:6px 10px; }
+
+/* Bets table */
+.tx-bets { width:100%; font-size:12px; border-collapse:collapse; }
+.tx-bets th { color:#aaa; font-weight:600; padding:4px 8px; border-bottom:1px solid rgba(255,255,255,.07); }
+.tx-bets td { padding:5px 8px; border-bottom:1px solid rgba(255,255,255,.04); }
+.tx-tai { color:#2ecc71; font-weight:700; }
+.tx-xiu { color:#3498db; font-weight:700; }
+.result-win    { color:#2ecc71; }
+.result-lose   { color:#e74c3c; }
+.result-triple { color:#e74c3c; }
+
+/* Chat */
+.tx-chat-panel { flex:1; display:flex; flex-direction:column; min-height:0; }
+.tx-chat-messages { flex:1; overflow-y:auto; padding:8px 12px; max-height:220px; }
+.tx-chat-msg { margin-bottom:6px; }
+.tx-chat-meta { display:flex; justify-content:space-between; margin-bottom:1px; }
+.tx-chat-name { font-size:11px; font-weight:700; color:#aaa; }
+.tx-chat-time { font-size:10px; color:#666; }
+.tx-chat-bubble { font-size:12px; color:#ddd; background:rgba(255,255,255,.05); border-radius:6px; padding:4px 8px; display:inline-block; }
+.tx-chat-mine .tx-chat-bubble { background:rgba(52,152,219,.15); color:#7ecbf5; }
+.tx-chat-input-row { display:flex; padding:8px; gap:6px; border-top:1px solid rgba(255,255,255,.08); }
+.tx-chat-input { flex:1; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); color:#fff; border-radius:6px; padding:5px 10px; font-size:12px; }
+.tx-chat-send { background:#3498db; border:none; color:#fff; border-radius:6px; padding:5px 10px; cursor:pointer; }
+
+/* Log */
+.tx-log-entry { font-size:11px; color:#aaa; border-bottom:1px solid rgba(255,255,255,.04); padding:2px 0; }
+</style>
+}
+
+<!-- Header -->
+<div class="row mb-2">
+    <div class="col-12 d-flex align-items-center justify-content-between">
+        <a href="/entertainment/taixiu" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left mr-1"></i> Lobby
+        </a>
+        <span class="text-muted small">@Model.Name</span>
+        <form id="leaveForm" action="/entertainment/taixiu/@Model.Id/leave" method="post" class="d-inline">
+            @Html.AntiForgeryToken()
+            <button type="button" class="btn btn-sm btn-danger" onclick="confirmLeave()">
+                <i class="fas fa-sign-out-alt mr-1"></i> Rời bàn
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="tx-room">
+    <!-- Main column -->
+    <div class="tx-main">
+
+        <!-- Phase / countdown -->
+        <div class="tx-card">
+            <div class="tx-countdown">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span id="phaseLabel" class="font-weight-bold" style="color:#f6c23e;">
+                        <i class="fas fa-coins mr-1"></i> Đặt cược
+                    </span>
+                    <span id="countdownText" class="text-muted small"></span>
+                </div>
+                <div class="tx-countdown-bar">
+                    <div id="countdownFill" class="tx-countdown-fill" style="width:100%;background:#f6c23e;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dice display -->
+        <div class="tx-card">
+            <div class="tx-dice-area" id="diceArea">
+                <span style="color:#666;font-size:14px;">Đang chờ kết quả...</span>
+            </div>
+            <div id="outcomeBox" style="display:none;margin-bottom:8px;"></div>
+            <div id="myResultBox" style="display:none;margin-bottom:0;"></div>
+        </div>
+
+        <!-- Bet panel -->
+        <div class="tx-card" id="betPanel">
+            <div class="tx-card-header">
+                🎯 Đặt cược — Zoo: <strong id="balanceLabel" style="color:#f6c23e;">@myBalance.ToString("N0")</strong>
+            </div>
+            <div class="tx-bet-panel">
+                <div class="tx-choice-btns">
+                    <button class="tx-choice-btn tai active" id="btnTai" onclick="selectChoice('tai')">
+                        🔴 Tài (11–18)
+                    </button>
+                    <button class="tx-choice-btn xiu" id="btnXiu" onclick="selectChoice('xiu')">
+                        🔵 Xỉu (3–10)
+                    </button>
+                </div>
+                <div class="tx-shortcuts" id="shortcuts"></div>
+                <div class="tx-amount-row">
+                    <input type="number" id="betAmount" value="@Model.MinBet" min="@Model.MinBet" max="@Model.MaxBet">
+                    <span class="text-muted small">Zoo</span>
+                    <button class="btn btn-warning font-weight-bold" id="betBtn" onclick="placeBet()">
+                        Đặt cược
+                    </button>
+                </div>
+                <small class="text-muted d-block mt-1">@Model.MinBet.ToString("N0")–@Model.MaxBet.ToString("N0") Zoo</small>
+            </div>
+        </div>
+
+        <!-- Already bet indicator -->
+        <div class="tx-card" id="alreadyBetPanel" style="display:none;">
+            <div class="tx-bet-panel text-center">
+                <div id="alreadyBetInfo" class="mb-1" style="font-size:15px;font-weight:700;"></div>
+                <small class="text-muted">Đang chờ kết quả...</small>
+            </div>
+        </div>
+
+        <!-- Bets this round -->
+        <div class="tx-card">
+            <div class="tx-card-header">
+                <i class="fas fa-list-ul mr-1"></i> Cược trong ván
+                <span class="float-right text-muted small">
+                    <span id="taiTotal" style="color:#2ecc71;">Tài: 0</span>
+                    &nbsp;|&nbsp;
+                    <span id="xiuTotal" style="color:#3498db;">Xỉu: 0</span>
+                </span>
+            </div>
+            <div style="padding:4px 0;max-height:200px;overflow-y:auto;">
+                <table class="tx-bets w-100">
+                    <thead>
+                        <tr>
+                            <th>Người chơi</th>
+                            <th>Lựa chọn</th>
+                            <th class="text-right">Số Zoo</th>
+                            <th class="text-right" id="resultHeader" style="display:none;">Kết quả</th>
+                        </tr>
+                    </thead>
+                    <tbody id="betsBody">
+                        <tr><td colspan="4" class="text-center text-muted py-2" style="font-size:11px;">Chưa có cược nào</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /tx-main -->
+
+    <!-- Side column -->
+    <div class="tx-side">
+        <!-- Balance -->
+        <div class="tx-card" style="padding:12px 14px;">
+            <div style="font-size:11px;color:#aaa;margin-bottom:2px;">Số dư</div>
+            <div id="sideBalance" style="font-size:22px;font-weight:800;color:#f6c23e;">@myBalance.ToString("N0")</div>
+            <div style="font-size:10px;color:#666;">Zoo Coins</div>
+        </div>
+
+        <!-- Log -->
+        <div class="tx-card" style="padding:10px 12px;overflow-y:auto;max-height:200px;">
+            <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:6px;">
+                <i class="fas fa-scroll mr-1"></i> Lịch sử
+            </div>
+            <div id="logBox"></div>
+        </div>
+
+        <!-- Chat -->
+        <div class="tx-card tx-chat-panel">
+            <div class="tx-card-header"><i class="fas fa-comments mr-1"></i> Chat</div>
+            <div class="tx-chat-messages" id="chatBox"></div>
+            <div class="tx-chat-input-row">
+                <input type="text" id="chatInput" class="tx-chat-input" placeholder="Nhắn tin..." maxlength="500">
+                <button class="tx-chat-send" id="chatSendBtn" onclick="sendChat()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+const CSRF      = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)[1];
+const TABLE_ID  = @Model.Id;
+const MY_ID     = @myUserId;
+const MIN_BET   = @Model.MinBet;
+const MAX_BET   = @Model.MaxBet;
+
+let phase       = 'betting';
+let deadline    = null;
+let countdown   = null;
+let myBet       = null;
+let allBets     = [];
+let balance     = @myBalance;
+let betChoice   = 'tai';
+let _timer      = null;
+let _leaving    = false;
+
+const DICE_FACES = ['', '⚀','⚁','⚂','⚃','⚄','⚅'];
+
+// ── SignalR ──────────────────────────────────────────────────────────────
+const conn = new signalR.HubConnectionBuilder()
+    .withUrl('/hubs/taixiu')
+    .withAutomaticReconnect()
+    .build();
+
+conn.on('RoomEvent', function(e) {
+    if (['round_started','bet_placed','dice_rolled','round_finished'].includes(e.type) && e.state) {
+        const saved = myBet || (e.state.bets || []).find(b => b.user_id === MY_ID) || null;
+        applyState({ ...e.state, my_bet: e.state.my_bet ?? saved });
+    } else if (e.type === 'chat_message' && e.chat_message) {
+        pushChat(e.chat_message);
+    }
+});
+
+conn.start().then(() => conn.invoke('JoinRoom', TABLE_ID));
+
+window.addEventListener('beforeunload', function() {
+    conn.invoke('LeaveRoom', TABLE_ID);
+    if (!_leaving) {
+        navigator.sendBeacon(`/entertainment/taixiu/${TABLE_ID}/leave`,
+            new URLSearchParams({ __RequestVerificationToken: CSRF, _method: 'POST' }));
+    }
+});
+
+// ── Initial load ─────────────────────────────────────────────────────────
+fetch(`/entertainment/taixiu/${TABLE_ID}/state`)
+    .then(r => r.json())
+    .then(res => {
+        if (res.z_coins !== undefined) setBalance(res.z_coins);
+        if (res.game) applyState(res.game);
+        buildShortcuts();
+    });
+
+fetch(`/entertainment/taixiu/${TABLE_ID}/chat`)
+    .then(r => r.json())
+    .then(res => { (res.messages || []).forEach(pushChat); scrollChat(); });
+
+// ── State machine ────────────────────────────────────────────────────────
+function applyState(s) {
+    if (!s) return;
+    phase   = s.phase;
+    allBets = s.bets || [];
+    myBet   = s.my_bet || null;
+    if (s.log) renderLog(s.log);
+    if (s.z_coins != null) setBalance(s.z_coins);
+    if (s.deadline) startCountdown(s.deadline);
+
+    renderDice(s);
+    renderBets(s);
+    renderBetPanel();
+}
+
+function renderDice(s) {
+    const area = document.getElementById('diceArea');
+    const outBox = document.getElementById('outcomeBox');
+    const myBox = document.getElementById('myResultBox');
+
+    if (s.phase === 'result' && s.dice && s.dice.length === 3) {
+        area.innerHTML = s.dice.map(d => `<div class="die">${DICE_FACES[d]}</div>`).join('');
+        outBox.style.display = 'block';
+        const cls = s.outcome || '';
+        let label = '';
+        if (cls === 'triple') label = `🎲🎲🎲 Ba bằng nhau — Nhà cái thắng`;
+        else if (cls === 'tai') label = `Tài — Tổng: ${s.sum}`;
+        else label = `Xỉu — Tổng: ${s.sum}`;
+        outBox.innerHTML = `<div class="tx-outcome ${cls}">${label}</div>`;
+    } else {
+        area.innerHTML = '<span style="color:#666;font-size:14px;">Đang đặt cược...</span>';
+        if (s.phase === 'betting' && s.bets && s.bets.length === 0) {
+            // Show rolling dice placeholder
+        }
+        outBox.style.display = 'none';
+    }
+
+    myBox.style.display = (myBet && myBet.result) ? 'block' : 'none';
+    if (myBet && myBet.result) {
+        const cls2 = myBet.result;
+        let txt = '';
+        if (cls2 === 'win')    txt = `🎉 Thắng! +${fmt(myBet.payout)} Zoo`;
+        else if (cls2 === 'triple') txt = `Nhà cái thắng (ba bằng nhau)`;
+        else txt = `Thua — −${fmt(myBet.amount)} Zoo`;
+        myBox.innerHTML = `<div class="tx-my-result ${cls2}">${txt}</div>`;
+    }
+}
+
+function renderBetPanel() {
+    const panel = document.getElementById('betPanel');
+    const already = document.getElementById('alreadyBetPanel');
+    if (phase === 'betting') {
+        if (myBet) {
+            panel.style.display = 'none';
+            already.style.display = 'block';
+            const lbl = myBet.choice === 'tai' ? '🔴 Tài' : '🔵 Xỉu';
+            document.getElementById('alreadyBetInfo').innerHTML = `✅ ${lbl} — ${fmt(myBet.amount)} Zoo`;
+        } else {
+            panel.style.display = 'block';
+            already.style.display = 'none';
+        }
+    } else {
+        panel.style.display = 'none';
+        already.style.display = 'none';
+    }
+}
+
+function renderBets(s) {
+    const tbody = document.getElementById('betsBody');
+    const hasResult = s.phase !== 'betting';
+    document.getElementById('resultHeader').style.display = hasResult ? '' : 'none';
+
+    let taiSum = 0, xiuSum = 0;
+    let rows = '';
+    for (const b of allBets) {
+        if (b.choice === 'tai') taiSum += b.amount;
+        else xiuSum += b.amount;
+        let resultCell = '';
+        if (hasResult) {
+            if (b.result === 'win')    resultCell = `<span class="result-win">+${fmt(b.payout)}</span>`;
+            else if (b.result === 'lose')   resultCell = `<span class="result-lose">−${fmt(b.amount)}</span>`;
+            else if (b.result === 'triple') resultCell = `<span class="result-triple">−${fmt(b.amount)}</span>`;
+            else resultCell = '—';
+        }
+        rows += `<tr>
+            <td>${esc(b.name)}</td>
+            <td class="${b.choice === 'tai' ? 'tx-tai' : 'tx-xiu'}">${b.choice === 'tai' ? '🔴 Tài' : '🔵 Xỉu'}</td>
+            <td class="text-right">${fmt(b.amount)}</td>
+            ${hasResult ? `<td class="text-right">${resultCell}</td>` : ''}
+          </tr>`;
+    }
+    if (!rows) rows = `<tr><td colspan="4" class="text-center text-muted py-2" style="font-size:11px;">Chưa có cược nào</td></tr>`;
+    tbody.innerHTML = rows;
+    document.getElementById('taiTotal').textContent = `Tài: ${fmt(taiSum)}`;
+    document.getElementById('xiuTotal').textContent = `Xỉu: ${fmt(xiuSum)}`;
+}
+
+function renderLog(log) {
+    const box = document.getElementById('logBox');
+    box.innerHTML = log.map(e => `<div class="tx-log-entry">${esc(e)}</div>`).join('');
+}
+
+// ── Countdown ────────────────────────────────────────────────────────────
+const DURATION = { betting: 30, result: 8 };
+
+function startCountdown(dl) {
+    deadline = dl;
+    if (_timer) { clearInterval(_timer); _timer = null; }
+    function tick() {
+        const left = Math.max(0, deadline - Math.floor(Date.now() / 1000));
+        countdown = left;
+        const dur = DURATION[phase] || 30;
+        document.getElementById('countdownText').textContent = left + 's';
+        document.getElementById('countdownFill').style.width = ((left / dur) * 100) + '%';
+
+        const col = phase === 'result'
+            ? (document.querySelector('.tx-outcome')?.classList.contains('tai') ? '#2ecc71'
+               : document.querySelector('.tx-outcome')?.classList.contains('xiu') ? '#3498db'
+               : '#e74c3c')
+            : '#f6c23e';
+        document.getElementById('countdownFill').style.background = col;
+
+        if (left <= 0) { clearInterval(_timer); _timer = null; }
+
+        // Phase label
+        let icon = 'fa-coins', label = 'Đặt cược';
+        if (phase === 'result') { icon = 'fa-dice'; label = 'Kết quả'; }
+        document.getElementById('phaseLabel').style.color = col;
+        document.getElementById('phaseLabel').innerHTML = `<i class="fas ${icon} mr-1"></i>${label}`;
+
+        // Dice rolling animation when ≤ 4s remain in betting
+        if (left <= 4 && left > 0 && phase === 'betting') {
+            document.querySelectorAll('.die').forEach(d => d.classList.add('rolling'));
+        }
+    }
+    tick();
+    _timer = setInterval(tick, 500);
+}
+
+// ── Bet ──────────────────────────────────────────────────────────────────
+function selectChoice(c) {
+    betChoice = c;
+    document.getElementById('btnTai').classList.toggle('active', c === 'tai');
+    document.getElementById('btnXiu').classList.toggle('active', c === 'xiu');
+}
+
+function buildShortcuts() {
+    const shortcuts = [MIN_BET, MIN_BET*2, MIN_BET*5, MIN_BET*10, MIN_BET*20]
+        .filter(v => v <= MAX_BET);
+    document.getElementById('shortcuts').innerHTML = shortcuts
+        .map(v => `<button class="tx-shortcut" onclick="document.getElementById('betAmount').value=${v}">${fmt(v)}</button>`)
+        .join('');
+}
+
+function placeBet() {
+    const amount = parseInt(document.getElementById('betAmount').value, 10);
+    if (isNaN(amount) || amount < MIN_BET || amount > MAX_BET) {
+        alert(`Cược từ ${fmt(MIN_BET)} đến ${fmt(MAX_BET)} Zoo.`); return;
+    }
+    const btn = document.getElementById('betBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span>';
+
+    fetch(`/entertainment/taixiu/${TABLE_ID}/bet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+        body: JSON.stringify({ choice: betChoice, amount }),
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.error) { alert(res.error); }
+        else if (res.state) { applyState(res.state); }
+    })
+    .catch(() => alert('Lỗi kết nối.'))
+    .finally(() => { btn.disabled = false; btn.innerHTML = 'Đặt cược'; });
+}
+
+// ── Chat ─────────────────────────────────────────────────────────────────
+function pushChat(m) {
+    const box = document.getElementById('chatBox');
+    const mine = m.user_id === MY_ID;
+    const div = document.createElement('div');
+    div.className = 'tx-chat-msg' + (mine ? ' tx-chat-mine' : '');
+    div.innerHTML = `<div class="tx-chat-meta">
+        <span class="tx-chat-name">${mine ? 'Bạn' : esc(m.name)}</span>
+        <span class="tx-chat-time">${m.time}</span>
+    </div>
+    <div class="tx-chat-bubble">${esc(m.message)}</div>`;
+    box.appendChild(div);
+    if (box.children.length > 200) box.removeChild(box.firstChild);
+    scrollChat();
+}
+function scrollChat() {
+    const box = document.getElementById('chatBox');
+    box.scrollTop = box.scrollHeight;
+}
+
+function sendChat() {
+    const inp = document.getElementById('chatInput');
+    const txt = inp.value.trim();
+    if (!txt) return;
+    inp.value = '';
+    const btn = document.getElementById('chatSendBtn');
+    btn.disabled = true;
+    fetch(`/entertainment/taixiu/${TABLE_ID}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+        body: JSON.stringify({ message: txt }),
+    })
+    .then(r => r.json())
+    .then(res => { if (res.message) pushChat(res.message); })
+    .finally(() => { btn.disabled = false; });
+}
+
+document.getElementById('chatInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+});
+
+// ── Leave ────────────────────────────────────────────────────────────────
+function confirmLeave() {
+    if (confirm('Rời bàn?')) {
+        _leaving = true;
+        document.getElementById('leaveForm').submit();
+    }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function setBalance(n) {
+    balance = n;
+    const s = fmt(n);
+    document.getElementById('balanceLabel').textContent = s;
+    document.getElementById('sideBalance').textContent  = s;
+    const nav = document.getElementById('nav-zcoin-balance');
+    if (nav) nav.textContent = s;
+}
+
+function fmt(n) {
+    if (n == null) return '0';
+    if (n >= 1000000) return (n/1000000).toFixed(1)+'M';
+    if (n >= 1000)    return (n/1000).toFixed(1)+'k';
+    return Number(n).toLocaleString();
+}
+
+function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+}

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using WWM_ASP.Data;
+using WWM_ASP.Hubs;
 using WWM_ASP.Middleware;
 using WWM_ASP.Services;
 
@@ -54,6 +55,9 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddControllersWithViews()
     .AddRazorRuntimeCompilation();  // hot-reload views in development
 
+// ─── SignalR ──────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(options =>
 {
@@ -95,5 +99,8 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// ─── SignalR hubs ─────────────────────────────────────────────────────────────
+app.MapHub<TaixiuHub>("/hubs/taixiu");
 
 app.Run();

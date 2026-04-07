@@ -1,0 +1,220 @@
+@model List<TaixiuTable>
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"]      = "Tài Xỉu Lobby";
+    ViewData["ActivePage"] = "entertainment";
+}
+
+<div class="row mb-3">
+    <div class="col-12 d-flex align-items-center">
+        <a href="/entertainment" class="btn btn-secondary">
+            <i class="fas fa-arrow-left mr-1"></i> Entertainment Hall
+        </a>
+        <button class="btn btn-warning ml-auto" data-toggle="modal" data-target="#createModal">
+            <i class="fas fa-plus mr-1"></i> Tạo bàn
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-dice mr-1 text-danger"></i> Tài Xỉu — Lobby</h3>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0" id="tableList">
+                <thead>
+                    <tr>
+                        <th>Tên bàn</th>
+                        <th>Cược tối thiểu / tối đa</th>
+                        <th>Người chơi</th>
+                        <th class="text-center">Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    @foreach (var t in Model)
+                    {
+                        <tr data-id="@t.Id">
+                            <td><strong>@t.Name</strong></td>
+                            <td>@t.MinBet.ToString("N0") / @t.MaxBet.ToString("N0") Zoo</td>
+                            <td>@t.CurrentPlayers / @t.MaxPlayers</td>
+                            <td class="text-center">
+                                <span class="badge @(t.Status == "playing" ? "badge-warning" : t.Status == "waiting" ? "badge-success" : "badge-danger")">
+                                    @t.Status
+                                </span>
+                            </td>
+                            <td class="text-right">
+                                @if (t.CurrentPlayers < t.MaxPlayers)
+                                {
+                                    <button class="btn btn-warning btn-sm join-btn" data-id="@t.Id">
+                                        <i class="fas fa-play mr-1"></i> Tham gia
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-secondary btn-sm" disabled>
+                                        <i class="fas fa-ban mr-1"></i> Đầy
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr id="emptyRow">
+                            <td colspan="5" class="text-center text-muted py-4">Chưa có bàn nào. Hãy tạo bàn mới!</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus mr-1"></i> Tạo bàn Tài Xỉu</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tên bàn</label>
+                    <input type="text" id="cName" class="form-control" placeholder="My Tài Xỉu Table" maxlength="60">
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label>Cược tối thiểu (Zoo)</label>
+                        <input type="number" id="cMinBet" class="form-control" value="100" min="1">
+                    </div>
+                    <div class="form-group col-6">
+                        <label>Cược tối đa (Zoo)</label>
+                        <input type="number" id="cMaxBet" class="form-control" value="5000" min="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Số người tối đa</label>
+                    <input type="number" id="cMaxPlayers" class="form-control" value="20" min="2" max="100">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" id="createBtn">
+                    <i class="fas fa-plus mr-1"></i> Tạo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Joining overlay -->
+<div id="joiningOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;flex-direction:column;color:#fff;">
+    <div class="spinner-border mb-3" style="width:3rem;height:3rem;"></div>
+    <h5>Đang tham gia...</h5>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+const CSRF = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)[1];
+
+// ── SignalR lobby ────────────────────────────────────────────────────────
+const conn = new signalR.HubConnectionBuilder()
+    .withUrl('/hubs/taixiu')
+    .withAutomaticReconnect()
+    .build();
+
+conn.on('LobbyEvent', function(e) {
+    if (e.table) updateRow(e.table, e.closed === true);
+});
+
+conn.start().then(() => conn.invoke('JoinLobby'));
+
+// ── Row management ───────────────────────────────────────────────────────
+function statusBadge(s) {
+    return s === 'playing' ? 'badge-warning' : s === 'waiting' ? 'badge-success' : 'badge-danger';
+}
+function fmtN(n) { return Number(n).toLocaleString(); }
+
+function updateRow(t, closed) {
+    const tbody = document.getElementById('tableBody');
+    const existing = tbody.querySelector(`tr[data-id="${t.id}"]`);
+    if (closed) { if (existing) existing.remove(); return; }
+
+    const joinBtn = t.current_players < t.max_players
+        ? `<button class="btn btn-warning btn-sm join-btn" data-id="${t.id}"><i class="fas fa-play mr-1"></i> Tham gia</button>`
+        : `<button class="btn btn-secondary btn-sm" disabled><i class="fas fa-ban mr-1"></i> Đầy</button>`;
+    const html = `
+      <td><strong>${t.name}</strong></td>
+      <td>${fmtN(t.min_bet)} / ${fmtN(t.max_bet)} Zoo</td>
+      <td>${t.current_players} / ${t.max_players}</td>
+      <td class="text-center"><span class="badge ${statusBadge(t.status)}">${t.status}</span></td>
+      <td class="text-right">${joinBtn}</td>`;
+
+    if (existing) {
+        existing.innerHTML = html;
+    } else {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-id', t.id);
+        tr.innerHTML = html;
+        const empty = document.getElementById('emptyRow');
+        if (empty) empty.remove();
+        tbody.appendChild(tr);
+    }
+}
+
+// ── Join ─────────────────────────────────────────────────────────────────
+document.getElementById('tableBody').addEventListener('click', function(e) {
+    const btn = e.target.closest('.join-btn');
+    if (!btn) return;
+    joinTable(btn.dataset.id);
+});
+
+function joinTable(id) {
+    document.getElementById('joiningOverlay').style.display = 'flex';
+    fetch(`/entertainment/taixiu/${id}/join`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.redirect) { window.location.href = res.redirect; }
+        else { document.getElementById('joiningOverlay').style.display = 'none'; alert(res.message || 'Lỗi.'); }
+    })
+    .catch(() => { document.getElementById('joiningOverlay').style.display = 'none'; });
+}
+
+// ── Create ───────────────────────────────────────────────────────────────
+document.getElementById('createBtn').addEventListener('click', function() {
+    const name = document.getElementById('cName').value.trim();
+    if (!name) { alert('Nhập tên bàn.'); return; }
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Đang tạo...';
+
+    fetch('/entertainment/taixiu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+        body: JSON.stringify({
+            name,
+            minBet:     +document.getElementById('cMinBet').value,
+            maxBet:     +document.getElementById('cMaxBet').value,
+            maxPlayers: +document.getElementById('cMaxPlayers').value,
+        }),
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.redirect) { window.location.href = res.redirect; }
+        else {
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-plus mr-1"></i> Tạo';
+            const err = res.errors ? Object.values(res.errors).flat().join(' ') : (res.message || 'Lỗi.');
+            alert(err);
+        }
+    })
+    .catch(() => { this.disabled = false; this.innerHTML = '<i class="fas fa-plus mr-1"></i> Tạo'; });
+});
+</script>
+}
