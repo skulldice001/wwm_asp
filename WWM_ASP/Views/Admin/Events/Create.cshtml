@@ -1,0 +1,173 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = "New Event";
+    ViewData["ActivePage"] = "events";
+
+    string initialType = ViewBag.InitialType ?? "";
+    var users = (List<WWM_ASP.Models.User>)ViewBag.Users;
+}
+
+<div class="card card-outline card-primary">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-calendar-plus mr-1"></i> New Event</h3>
+        <div class="card-tools">
+            <a href="/admin/events" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i> Back
+            </a>
+        </div>
+    </div>
+    <form method="post" action="/admin/events/create" id="eventForm">
+        @Html.AntiForgeryToken()
+        <div class="card-body">
+
+            <div class="form-group">
+                <label>Event Type <span class="text-danger">*</span></label>
+                <select name="type" id="eventType" class="form-control" required>
+                    <option value="casual"     @(initialType == "casual"     ? "selected" : "")>Casual</option>
+                    <option value="guild_war"  @(initialType == "guild_war"  ? "selected" : "")>Guild War</option>
+                    <option value="lucky_draw" @(initialType == "lucky_draw" ? "selected" : "")>Lucky Draw 🎲</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Title <span class="text-danger">*</span></label>
+                <input type="text" name="title" class="form-control" required maxlength="255"
+                       id="titleInput">
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label>Start time <span class="text-danger">*</span></label>
+                    <input type="datetime-local" name="startTime" class="form-control" required>
+                </div>
+                <div class="form-group col-md-6">
+                    <label>End time <span id="endTimeNote"></span></label>
+                    <input type="datetime-local" name="endTime" class="form-control" id="endTimeInput">
+                </div>
+            </div>
+
+            <div class="form-row" id="nonLuckyFields">
+                <div class="form-group col-md-6">
+                    <label>Location</label>
+                    <input type="text" name="location" class="form-control" maxlength="255">
+                </div>
+                <div class="form-group col-md-6">
+                    <label>Status</label>
+                    <select name="status" class="form-control">
+                        <option value="upcoming">Upcoming</option>
+                        <option value="ongoing">Ongoing</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" id="nonLuckyFields2">
+                <label>Rules</label>
+                <textarea name="rules" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-group" id="nonLuckyFields3">
+                <label>Rewards</label>
+                <textarea name="rewards" class="form-control" rows="2"></textarea>
+            </div>
+
+            <!-- Participants (non-lucky draw) -->
+            <div class="form-group" id="participantsField">
+                <label>Add Participants</label>
+                <select name="participantIds" class="form-control" multiple size="6">
+                    @foreach (var u in users)
+                    {
+                        <option value="@u.Id">@u.Account (@u.Name)</option>
+                    }
+                </select>
+                <small class="text-muted">Hold Ctrl/Cmd to select multiple.</small>
+            </div>
+
+            <!-- Lucky Draw prizes -->
+            <div id="luckyDrawSection" style="display:none;">
+                <hr>
+                <h6><i class="fas fa-trophy mr-1 text-warning"></i> Prizes</h6>
+                <div id="prizeList"></div>
+                <button type="button" class="btn btn-sm btn-outline-warning" onclick="addPrize()">
+                    <i class="fas fa-plus mr-1"></i> Add Prize
+                </button>
+                <small class="text-muted d-block mt-1">
+                    One winner per prize, drawn in order. Zoo-coins are awarded automatically.
+                </small>
+            </div>
+
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save mr-1"></i> Create
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+var prizeCount = 0;
+
+function updateType() {
+    var t = document.getElementById('eventType').value;
+    var isLD = t === 'lucky_draw';
+
+    document.getElementById('luckyDrawSection').style.display = isLD ? '' : 'none';
+    document.getElementById('participantsField').style.display = isLD ? 'none' : '';
+    document.getElementById('nonLuckyFields').style.display  = isLD ? 'none' : '';
+    document.getElementById('nonLuckyFields2').style.display = isLD ? 'none' : '';
+    document.getElementById('nonLuckyFields3').style.display = isLD ? 'none' : '';
+    document.getElementById('endTimeNote').textContent = isLD ? '(= Draw time) *' : '';
+    document.getElementById('endTimeInput').required = isLD;
+
+    if (isLD && prizeCount === 0) addPrize();
+}
+
+function addPrize() {
+    prizeCount++;
+    var i = prizeCount;
+    var div = document.createElement('div');
+    div.className = 'border rounded p-2 mb-2';
+    div.id = 'prize_' + i;
+    div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <strong class="small">Prize #${i}</strong>
+            <button type="button" class="btn btn-xs btn-outline-danger" onclick="removePrize(${i})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-5 mb-1">
+                <input type="text" name="prizeNames" class="form-control form-control-sm"
+                       placeholder="Prize name *" required>
+            </div>
+            <div class="form-group col-md-4 mb-1">
+                <input type="text" name="prizeDescs" class="form-control form-control-sm"
+                       placeholder="Description (optional)">
+            </div>
+            <div class="form-group col-md-3 mb-1">
+                <div class="input-group input-group-sm">
+                    <input type="number" name="prizeCoins" class="form-control"
+                           placeholder="0" min="0" value="0">
+                    <div class="input-group-append">
+                        <span class="input-group-text">🪙</span>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('prizeList').appendChild(div);
+}
+
+function removePrize(i) {
+    var el = document.getElementById('prize_' + i);
+    if (el) el.remove();
+}
+
+document.getElementById('eventType').addEventListener('change', updateType);
+updateType();
+</script>
+}

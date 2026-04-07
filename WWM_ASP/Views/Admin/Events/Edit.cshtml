@@ -1,0 +1,110 @@
+@model Event
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = $"Edit: {Model.Title}";
+    ViewData["ActivePage"] = "events";
+
+    var users          = (List<WWM_ASP.Models.User>)ViewBag.Users;
+    var participantIds = (List<long>)ViewBag.ParticipantIds;
+}
+
+<div class="card card-outline card-warning">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-edit mr-1"></i> Edit Event</h3>
+        <div class="card-tools">
+            <a href="/admin/events" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i> Back
+            </a>
+        </div>
+    </div>
+    <form method="post" action="/admin/events/@Model.Id/edit">
+        @Html.AntiForgeryToken()
+        <div class="card-body">
+
+            <div class="form-group">
+                <label>Type</label>
+                <input type="text" class="form-control" value="@Model.TypeLabel" disabled>
+                <input type="hidden" name="type" value="@Model.Type">
+            </div>
+
+            <div class="form-group">
+                <label>Title <span class="text-danger">*</span></label>
+                <input type="text" name="title" class="form-control" required maxlength="255"
+                       value="@Model.Title">
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="3">@Model.Description</textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label>Start time <span class="text-danger">*</span></label>
+                    <input type="datetime-local" name="startTime" class="form-control" required
+                           value="@Model.StartTime?.ToString("yyyy-MM-ddTHH:mm")">
+                </div>
+                <div class="form-group col-md-6">
+                    <label>End time @(Model.IsLuckyDraw ? "(= Draw time)" : "")</label>
+                    <input type="datetime-local" name="endTime" class="form-control"
+                           value="@Model.EndTime?.ToString("yyyy-MM-ddTHH:mm")">
+                </div>
+            </div>
+
+            @if (!Model.IsLuckyDraw)
+            {
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>Location</label>
+                        <input type="text" name="location" class="form-control" maxlength="255"
+                               value="@Model.Location">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            @foreach (var s in new[] { "upcoming", "ongoing", "completed", "cancelled" })
+                            {
+                                <option value="@s" @(Model.Status == s ? "selected" : "")>@s</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Rules</label>
+                    <textarea name="rules" class="form-control" rows="2">@Model.Rules</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Rewards</label>
+                    <textarea name="rewards" class="form-control" rows="2">@Model.Rewards</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Participants</label>
+                    <select name="participantIds" class="form-control" multiple size="6">
+                        @foreach (var u in users)
+                        {
+                            <option value="@u.Id" @(participantIds.Contains(u.Id) ? "selected" : "")>
+                                @u.Account (@u.Name)
+                            </option>
+                        }
+                    </select>
+                    <small class="text-muted">Hold Ctrl/Cmd to select multiple.</small>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" name="status" value="@Model.Status">
+                <div class="alert alert-info">
+                    Lucky Draw prizes cannot be edited after creation. Use the Draw page to run the draw.
+                </div>
+            }
+
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save mr-1"></i> Save Changes
+            </button>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,77 @@
+@model List<EventParticipant>
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var ev = (Event)ViewBag.Event;
+    ViewData["Title"]      = $"Participants — {ev.Title}";
+    ViewData["ActivePage"] = "events";
+}
+
+<div class="card card-outline card-info">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-users mr-1"></i> Participants — @ev.Title
+        </h3>
+        <div class="card-tools">
+            <a href="/admin/events" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i> Back
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="px-3 py-2 border-bottom">
+            <strong>@Model.Count</strong> participant(s)
+            &nbsp;|&nbsp;
+            <span class="badge @ev.StatusBadge">@ev.StatusLabel</span>
+            &nbsp;
+            <span class="badge badge-light">@ev.TypeLabel</span>
+        </div>
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Account</th>
+                    <th>In-game name</th>
+                    @if (ev.IsGuildWar)
+                    {
+                        <th>Preferred time</th>
+                    }
+                    <th>Zoo-coins</th>
+                    <th>Registered at</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var (p, i) in Model.Select((p, i) => (p, i + 1)))
+                {
+                    <tr>
+                        <td>@i</td>
+                        <td>
+                            @if (p.User != null)
+                            {
+                                <img src="@p.User.AvatarUrl" width="22" height="22"
+                                     class="rounded-circle mr-1" style="object-fit:cover;">
+                                @p.User.Account
+                            }
+                        </td>
+                        <td>@p.User?.IngameName</td>
+                        @if (ev.IsGuildWar)
+                        {
+                            <td>@(p.PreferredTime ?? "—")</td>
+                        }
+                        <td>
+                            <strong style="color:#f6c23e;">
+                                @p.User?.ZCoins.ToString("N0")
+                            </strong>
+                        </td>
+                        <td style="font-size:11px;">@p.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No participants yet.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

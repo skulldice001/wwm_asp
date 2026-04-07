@@ -9,6 +9,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Staff>              Staffs              => Set<Staff>();
     public DbSet<ZooCoinTransaction> ZooCoinTransactions => Set<ZooCoinTransaction>();
     public DbSet<LibraryArticle>     LibraryArticles     => Set<LibraryArticle>();
+    public DbSet<Event>              Events              => Set<Event>();
+    public DbSet<EventParticipant>   EventParticipants   => Set<EventParticipant>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -67,6 +69,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany()
              .HasForeignKey(a => a.CreatedBy)
              .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ─── Event ────────────────────────────────────────────────────────
+        model.Entity<Event>(e =>
+        {
+            e.HasKey(ev => ev.Id);
+            e.HasQueryFilter(ev => ev.DeletedAt == null);
+
+            e.HasOne(ev => ev.Creator)
+             .WithMany()
+             .HasForeignKey(ev => ev.CreatedBy)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasMany(ev => ev.EventParticipants)
+             .WithOne(ep => ep.Event)
+             .HasForeignKey(ep => ep.EventId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── EventParticipant ─────────────────────────────────────────────
+        model.Entity<EventParticipant>(e =>
+        {
+            e.HasKey(ep => new { ep.EventId, ep.UserId });
+
+            e.HasOne(ep => ep.User)
+             .WithMany()
+             .HasForeignKey(ep => ep.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

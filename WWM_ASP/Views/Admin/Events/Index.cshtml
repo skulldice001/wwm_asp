@@ -1,0 +1,164 @@
+@model List<Event>
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = "Events";
+    ViewData["ActivePage"] = "events";
+}
+
+<div class="card card-outline card-primary">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-calendar-alt mr-1"></i> Events</h3>
+        <div class="card-tools">
+            @if (User.HasClaim("role", "master") || User.HasClaim("role", "admin"))
+            {
+                <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#createTypeModal">
+                    <i class="fas fa-plus mr-1"></i> New Event
+                </button>
+            }
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Start</th>
+                    <th>Created by</th>
+                    <th class="text-center">Participants</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ev in Model)
+                {
+                    <tr>
+                        <td><strong>@ev.Title</strong></td>
+                        <td>
+                            @if (ev.IsGuildWar)
+                            {
+                                <span class="badge badge-danger">Guild War</span>
+                            }
+                            else if (ev.IsLuckyDraw)
+                            {
+                                <span class="badge" style="background:#6f42c1;color:#fff;">🎲 Lucky Draw</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-success">Casual</span>
+                            }
+                        </td>
+                        <td><span class="badge @ev.StatusBadge">@ev.StatusLabel</span></td>
+                        <td style="font-size:12px;">
+                            @ev.StartTime?.ToString("HH:mm dd/MM/yyyy")
+                        </td>
+                        <td style="font-size:12px;">@(ev.Creator?.Name ?? "—")</td>
+                        <td class="text-center">@ev.EventParticipants.Count</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/admin/events/@ev.Id/participants" class="btn btn-info btn-sm">
+                                    <i class="fas fa-users"></i>
+                                </a>
+
+                                @if (ev.IsLuckyDraw)
+                                {
+                                    <a href="/admin/events/@ev.Id/lucky-draw" class="btn btn-sm"
+                                       style="background:#6f42c1;color:#fff;">
+                                        <i class="fas fa-dice"></i>
+                                    </a>
+                                }
+
+                                @if (ev.Status is not ("completed" or "cancelled"))
+                                {
+                                    <form method="post" action="/admin/events/@ev.Id/complete" class="d-inline"
+                                          onsubmit="return confirm('Mark event as completed?')">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-success btn-sm" title="Complete">
+                                            <i class="fas fa-flag-checkered"></i>
+                                        </button>
+                                    </form>
+
+                                    @if (User.HasClaim("role", "master") || User.HasClaim("role", "admin"))
+                                    {
+                                        <a href="/admin/events/@ev.Id/edit" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="post" action="/admin/events/@ev.Id/delete" class="d-inline"
+                                              onsubmit="return confirm('Delete this event?')">
+                                            @Html.AntiForgeryToken()
+                                            <button class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-3">No events found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create type selector modal -->
+<div class="modal fade" id="createTypeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Event Type</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="step1">
+                    <div class="row">
+                        <div class="col-6">
+                            <button class="btn btn-success btn-block btn-lg p-4"
+                                    onclick="document.getElementById('step1').style.display='none';document.getElementById('step2').style.display='block'">
+                                <i class="fas fa-calendar-check fa-2x mb-2 d-block"></i>Casual
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <a href="/admin/events/create?type=guild_war" class="btn btn-danger btn-block btn-lg p-4">
+                                <i class="fas fa-khanda fa-2x mb-2 d-block"></i>Guild War
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div id="step2" style="display:none;">
+                    <button class="btn btn-sm btn-secondary mb-3"
+                            onclick="document.getElementById('step2').style.display='none';document.getElementById('step1').style.display='block'">
+                        <i class="fas fa-arrow-left mr-1"></i> Back
+                    </button>
+                    <div class="row">
+                        <div class="col-6">
+                            <a href="/admin/events/create?type=casual" class="btn btn-success btn-block btn-lg p-4">
+                                <i class="fas fa-calendar-check fa-2x mb-2 d-block"></i>Normal Event
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="/admin/events/create?type=lucky_draw" class="btn btn-block btn-lg p-4"
+                               style="background:#6f42c1;color:#fff;">
+                                <i class="fas fa-dice fa-2x mb-2 d-block"></i>Lucky Draw
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$('#createTypeModal').on('hidden.bs.modal', function () {
+    document.getElementById('step1').style.display = 'block';
+    document.getElementById('step2').style.display = 'none';
+});
+</script>
+}

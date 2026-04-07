@@ -87,6 +87,12 @@
                             <p>Library</p>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="/admin/events" class="nav-link @(ViewData["ActivePage"] as string == "events" ? "active" : "")">
+                            <i class="nav-icon fas fa-calendar-alt"></i>
+                            <p>Events</p>
+                        </a>
+                    </li>
                     <li class="nav-item" style="margin-top:auto;">
                         <a href="/admin/profile" class="nav-link @(ViewData["ActivePage"] as string == "profile" ? "active" : "")">
                             <i class="nav-icon fas fa-id-badge"></i>

@@ -1,0 +1,139 @@
+@model List<Event>
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"]      = "Events";
+    ViewData["ActivePage"] = "events";
+
+    var registeredIds  = (HashSet<long>)ViewBag.RegisteredEventIds;
+    var preferredTimes = (Dictionary<long, string?>)ViewBag.PreferredTimes;
+}
+
+<div class="row">
+    @if (!Model.Any())
+    {
+        <div class="col-12">
+            <div class="alert alert-info">No upcoming events at the moment.</div>
+        </div>
+    }
+
+    @foreach (var ev in Model)
+    {
+        bool registered = registeredIds.Contains(ev.Id);
+        string? preferred = preferredTimes.GetValueOrDefault(ev.Id);
+
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card card-@(ev.IsGuildWar ? "danger" : "primary") card-outline h-100">
+                <div class="card-header">
+                    <h5 class="card-title m-0">@ev.Title</h5>
+                    <div class="card-tools">
+                        <span class="badge @ev.StatusBadge">@ev.StatusLabel</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(ev.Description))
+                    {
+                        <p class="text-muted small">
+                            @(ev.Description.Length > 120 ? ev.Description[..120] + "…" : ev.Description)
+                        </p>
+                    }
+                    <ul class="list-group list-group-unbordered mb-3">
+                        <li class="list-group-item px-0">
+                            <b>Start</b>
+                            <span class="float-right">@ev.StartTime?.ToString("HH:mm dd/MM/yyyy")</span>
+                        </li>
+                        <li class="list-group-item px-0">
+                            <b>End</b>
+                            <span class="float-right">@(ev.EndTime?.ToString("HH:mm dd/MM/yyyy") ?? "—")</span>
+                        </li>
+                        @if (!string.IsNullOrEmpty(ev.Location))
+                        {
+                            <li class="list-group-item px-0">
+                                <b>Location</b>
+                                <span class="float-right">@ev.Location</span>
+                            </li>
+                        }
+                        <li class="list-group-item px-0">
+                            <b>Participants</b>
+                            <span class="float-right">@ev.EventParticipants.Count</span>
+                        </li>
+                    </ul>
+
+                    @if (registered)
+                    {
+                        <div class="alert alert-success py-2">
+                            <i class="fas fa-check mr-1"></i> You are registered
+                            @if (!string.IsNullOrEmpty(preferred))
+                            {
+                                <div class="small mt-1">Preferred time: <strong>@preferred</strong></div>
+                            }
+                        </div>
+                        @if (ev.Status == "upcoming")
+                        {
+                            <form method="post" action="/events/@ev.Id/unregister">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-danger btn-block btn-sm"
+                                        onclick="return confirm('Cancel your registration?')">
+                                    <i class="fas fa-times mr-1"></i> Leave Event
+                                </button>
+                            </form>
+                        }
+                    }
+                    else
+                    {
+                        @if (ev.IsGuildWar)
+                        {
+                            <button class="btn btn-primary btn-block" data-toggle="modal"
+                                    data-target="#joinGwModal@(ev.Id)">
+                                <i class="fas fa-khanda mr-1"></i> Join Guild War
+                            </button>
+
+                            <div class="modal fade" id="joinGwModal@(ev.Id)" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <form method="post" action="/events/@ev.Id/register">
+                                        @Html.AntiForgeryToken()
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Join — @ev.Title</h5>
+                                                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="form-group mb-0">
+                                                    <label>Preferred time <span class="text-danger">*</span></label>
+                                                    <input type="text" name="preferredTime" class="form-control"
+                                                           placeholder="e.g. 19:30 - 22:00" required>
+                                                    <small class="text-muted">Enter the time you can play (HH:MM – HH:MM)</small>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">Confirm</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else if (ev.IsLuckyDraw)
+                        {
+                            <form method="post" action="/events/@ev.Id/register">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-block" style="background:#6f42c1;color:#fff;">
+                                    <i class="fas fa-dice mr-1"></i> Register for Lucky Draw
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" action="/events/@ev.Id/register">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-primary btn-block">
+                                    <i class="fas fa-calendar-check mr-1"></i> Join Event
+                                </button>
+                            </form>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>

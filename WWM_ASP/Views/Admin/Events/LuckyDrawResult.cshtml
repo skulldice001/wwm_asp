@@ -1,0 +1,165 @@
+@model Event
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = $"Lucky Draw — {Model.Title}";
+    ViewData["ActivePage"] = "events";
+
+    var data       = Model.LuckyDrawData;
+    var drawnAt    = data?.GetValueOrDefault("drawn_at")?.ToString();
+    var winnersRaw = data?.GetValueOrDefault("winners")?.ToString() ?? "[]";
+    var prizesRaw  = data?.GetValueOrDefault("prizes")?.ToString() ?? "[]";
+    var drawAt     = data?.GetValueOrDefault("draw_at")?.ToString();
+
+    var winners = System.Text.Json.JsonSerializer
+        .Deserialize<List<Dictionary<string, System.Text.Json.JsonElement>>>(winnersRaw) ?? [];
+    var prizes = System.Text.Json.JsonSerializer
+        .Deserialize<List<Dictionary<string, System.Text.Json.JsonElement>>>(prizesRaw) ?? [];
+
+    int participantCount = Model.EventParticipants.Count;
+}
+
+<div class="card card-primary">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-trophy mr-2 text-warning"></i>
+            Lucky Draw — @Model.Title
+        </h3>
+        <div class="card-tools">
+            <a href="/admin/events" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i> Back
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+
+        <!-- Info boxes -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-info"><i class="fas fa-user-clock"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Registration deadline</span>
+                        <span class="info-box-number">
+                            @Model.StartTime?.ToString("HH:mm dd/MM/yyyy")
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-warning"><i class="fas fa-clock"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Scheduled draw</span>
+                        <span class="info-box-number">
+                            @(DateTime.TryParse(drawAt, out var da) ? da.ToLocalTime().ToString("HH:mm dd/MM/yyyy") : "—")
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-success"><i class="fas fa-check"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Drawn at</span>
+                        <span class="info-box-number">
+                            @(DateTime.TryParse(drawnAt, out var dt) ? dt.ToLocalTime().ToString("HH:mm dd/MM/yyyy") : "—")
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-primary"><i class="fas fa-users"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Participants / Winners</span>
+                        <span class="info-box-number">@participantCount / @winners.Count</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (winners.Any())
+        {
+            <h5 class="mb-3"><i class="fas fa-medal mr-1 text-warning"></i> Winners</h5>
+            <table class="table table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th width="60">Rank</th>
+                        <th>Prize</th>
+                        <th>Description</th>
+                        <th>Zoo-coins</th>
+                        <th>Winner</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var w in winners)
+                    {
+                        int rank     = w.GetValueOrDefault("rank").GetInt32();
+                        string prize = w.GetValueOrDefault("prize_name").GetString() ?? "";
+                        string desc  = w.GetValueOrDefault("prize_desc").GetString() ?? "";
+                        int coins    = w.GetValueOrDefault("zoo_coin_amount").GetInt32();
+                        string name  = w.GetValueOrDefault("ingame_name").GetString() ?? "";
+                        string user  = w.GetValueOrDefault("username").GetString() ?? "";
+
+                        <tr class="@(rank == 1 ? "table-warning" : "")">
+                            <td class="text-center font-weight-bold">
+                                @(rank == 1 ? "🥇" : rank == 2 ? "🥈" : rank == 3 ? "🥉" : rank.ToString())
+                            </td>
+                            <td class="font-weight-bold">@prize</td>
+                            <td class="text-muted">@(string.IsNullOrEmpty(desc) ? "—" : desc)</td>
+                            <td>
+                                @if (coins > 0)
+                                {
+                                    <span class="badge badge-warning">🪙 @coins.ToString("N0")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                <strong>@name</strong>
+                                <br><small class="text-muted">@user</small>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle mr-1"></i> No winners yet.
+            </div>
+        }
+
+        @if (prizes.Any() && string.IsNullOrEmpty(drawnAt))
+        {
+            <hr>
+            <h5>Prizes configured</h5>
+            <ul>
+                @for (int i = 0; i < prizes.Count; i++)
+                {
+                    var p    = prizes[i];
+                    string n = p.GetValueOrDefault("name").GetString() ?? "";
+                    string d = p.GetValueOrDefault("description").GetString() ?? "";
+                    int    c = p.GetValueOrDefault("zoo_coin_amount").GetInt32();
+                    <li>
+                        <strong>Prize @(i+1): @n</strong>
+                        @if (!string.IsNullOrEmpty(d)) { <text>— @d</text> }
+                        @if (c > 0) { <text>· 🪙 @c.ToString("N0")</text> }
+                    </li>
+                }
+            </ul>
+
+            <form method="post" action="/admin/events/@Model.Id/run-draw"
+                  onsubmit="return confirm('Run the Lucky Draw now? This cannot be undone.')">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-danger btn-lg">
+                    <i class="fas fa-dice mr-1"></i> Run Draw Now
+                </button>
+            </form>
+        }
+
+    </div>
+</div>

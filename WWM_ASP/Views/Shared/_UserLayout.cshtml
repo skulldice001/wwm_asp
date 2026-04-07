@@ -101,6 +101,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="/events" class="nav-link @(ViewData["ActivePage"] as string == "events" ? "active" : "")">
+                            <i class="nav-icon fas fa-calendar-alt"></i>
+                            <p>Events</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="/entertainment" class="nav-link @(ViewData["ActivePage"] as string == "entertainment" ? "active" : "")">
                             <i class="nav-icon fas fa-gamepad"></i>
                             <p>Entertainment</p>
