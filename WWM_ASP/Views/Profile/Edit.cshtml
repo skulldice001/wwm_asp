@@ -1,0 +1,202 @@
+@model User
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"]      = "My Profile";
+    ViewData["ActivePage"] = "profile";
+    ViewBag.CurrentUser    = Model;
+}
+
+<div class="row">
+    <!-- Left: profile info + password -->
+    <div class="col-md-7">
+        <!-- Basic info -->
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-user-edit mr-1"></i> Profile Info</h3>
+            </div>
+            <form method="post" action="/profile/update" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <img src="@Model.AvatarUrl" class="rounded-circle"
+                             width="80" height="80" style="object-fit:cover;" id="avatarPreview">
+                    </div>
+                    <div class="form-group">
+                        <label>Avatar</label>
+                        <div class="input-group">
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" name="avatar"
+                                       accept="image/*" id="avatarInput">
+                                <label class="custom-file-label" for="avatarInput">Choose image...</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.DiscordId))
+                    {
+                        <div class="form-group">
+                            <label>Name <small class="text-muted">(synced from Discord)</small></label>
+                            <input type="text" class="form-control" value="@Model.Name" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Account</label>
+                            <input type="text" class="form-control" value="@Model.Account" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" class="form-control" value="@Model.Email" disabled>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" name="name" class="form-control" value="@Model.Name">
+                        </div>
+                        <div class="form-group">
+                            <label>Account</label>
+                            <input type="text" name="account" class="form-control" value="@Model.Account">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" class="form-control" value="@Model.Email">
+                        </div>
+                    }
+
+                    <div class="form-group">
+                        <label>Country</label>
+                        <input type="text" name="country" class="form-control" maxlength="255"
+                               value="@Model.Country">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>Online from</label>
+                            <input type="time" name="onlineFrom" class="form-control"
+                                   value="@Model.OnlineFrom">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Online to</label>
+                            <input type="time" name="onlineTo" class="form-control"
+                                   value="@Model.OnlineTo">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>In-game name</label>
+                        <input type="text" name="ingameName" class="form-control" maxlength="255"
+                               value="@Model.IngameName">
+                    </div>
+                    <div class="form-group">
+                        <label>In-game ID</label>
+                        <input type="text" name="ingameId" class="form-control" maxlength="255"
+                               value="@Model.IngameId">
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-1"></i> Save
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Change password -->
+        <div class="card card-outline card-warning">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-key mr-1"></i> Change Password</h3>
+            </div>
+            @if (TempData["PwError"] != null)
+            {
+                <div class="alert alert-danger mx-3 mt-3">@TempData["PwError"]</div>
+            }
+            <form method="post" action="/profile/password">
+                @Html.AntiForgeryToken()
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.Password))
+                    {
+                        <div class="form-group">
+                            <label>Current password</label>
+                            <input type="password" name="currentPassword" class="form-control">
+                        </div>
+                    }
+                    <div class="form-group">
+                        <label>New password</label>
+                        <input type="password" name="password" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm new password</label>
+                        <input type="password" name="passwordConfirm" class="form-control">
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-key mr-1"></i> Update Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right: Discord info + Zoo-coins -->
+    <div class="col-md-5">
+        <!-- Discord -->
+        <div class="card card-outline card-info">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fab fa-discord mr-1"></i> Discord</h3>
+            </div>
+            <div class="card-body text-center">
+                <img src="@Model.AvatarUrl" class="rounded-circle mb-2"
+                     width="64" height="64" style="object-fit:cover;">
+                <h5 class="mb-0">@Model.DisplayName</h5>
+                @if (!string.IsNullOrEmpty(Model.DiscordId))
+                {
+                    <p class="text-muted small">ID: @Model.DiscordId</p>
+                }
+                <a href="/auth/discord" class="btn btn-block btn-sm mt-2"
+                   style="background:#5865F2;color:#fff;border-color:#5865F2;">
+                    <i class="fab fa-discord mr-1"></i>
+                    @(string.IsNullOrEmpty(Model.DiscordId) ? "Link Discord" : "Re-sync Discord")
+                </a>
+            </div>
+        </div>
+
+        <!-- Zoo-coins summary -->
+        <div class="card card-outline card-warning">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-coins mr-1"></i> Zoo-coins</h3>
+                <div class="card-tools">
+                    <a href="/zoo-coins/history" class="btn btn-xs btn-outline-warning">History</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 style="color:#f6c23e;">@Model.ZCoins.ToString("N0")</h4>
+                        <small class="text-muted">Total</small>
+                    </div>
+                    <div class="col-4">
+                        <h4>@Model.ZCoinsFrozen.ToString("N0")</h4>
+                        <small class="text-muted">Frozen</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-success">@Model.AvailableZCoins.ToString("N0")</h4>
+                        <small class="text-muted">Available</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    document.getElementById('avatarInput').addEventListener('change', function () {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = e => document.getElementById('avatarPreview').src = e.target.result;
+            reader.readAsDataURL(file);
+            this.nextElementSibling.textContent = file.name;
+        }
+    });
+</script>
+}

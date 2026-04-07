@@ -49,6 +49,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany()
              .HasForeignKey(t => t.StaffId)
              .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne(t => t.RelatedUser)
+             .WithMany()
+             .HasForeignKey(t => t.RelatedUserId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

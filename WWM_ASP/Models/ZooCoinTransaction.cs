@@ -46,4 +46,7 @@ public class ZooCoinTransaction
 
     [ForeignKey(nameof(StaffId))]
     public Staff? Staff { get; set; }
+
+    [ForeignKey(nameof(RelatedUserId))]
+    public User? RelatedUser { get; set; }
 }

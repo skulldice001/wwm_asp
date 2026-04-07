@@ -1,0 +1,155 @@
+@model List<ZooCoinTransaction>
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"]      = "Zoo-coins";
+    ViewData["ActivePage"] = "zoo-coins";
+
+    var currentUser = (User)ViewBag.User;
+    int page  = (int)ViewBag.Page;
+    int pages = (int)ViewBag.Pages;
+
+    ViewBag.CurrentUser = currentUser;
+
+    bool IsCredit(string type) =>
+        type is "add" or "transfer_in" or "game_win" or "daily_bonus";
+}
+
+<div class="row">
+    <!-- Transfer form -->
+    <div class="col-md-4">
+        <div class="card card-outline card-warning">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-paper-plane mr-1"></i> Transfer</h3>
+            </div>
+            @if (TempData["TransferError"] != null)
+            {
+                <div class="alert alert-danger mx-3 mt-3">@TempData["TransferError"]</div>
+            }
+            @if (TempData["TransferSuccess"] != null)
+            {
+                <div class="alert alert-success mx-3 mt-3">@TempData["TransferSuccess"]</div>
+            }
+            <form method="post" action="/zoo-coins/transfer">
+                @Html.AntiForgeryToken()
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>Recipient account</label>
+                        <input type="text" name="recipientAccount" class="form-control"
+                               placeholder="Account name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <div class="input-group">
+                            <input type="number" name="amount" class="form-control"
+                                   placeholder="0" min="1" max="@currentUser.AvailableZCoins" required>
+                            <div class="input-group-append">
+                                <span class="input-group-text">Zoo</span>
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            Available: <strong style="color:#f6c23e;">@currentUser.AvailableZCoins.ToString("N0")</strong>
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-warning btn-block"
+                            onclick="return confirm('Transfer Zoo-coins?')">
+                        <i class="fas fa-paper-plane mr-1"></i> Send
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Balance summary -->
+        <div class="card card-outline card-secondary">
+            <div class="card-body text-center">
+                <div class="row">
+                    <div class="col-4">
+                        <h4 style="color:#f6c23e;">@currentUser.ZCoins.ToString("N0")</h4>
+                        <small class="text-muted">Total</small>
+                    </div>
+                    <div class="col-4">
+                        <h4>@currentUser.ZCoinsFrozen.ToString("N0")</h4>
+                        <small class="text-muted">Frozen ❄️</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-success">@currentUser.AvailableZCoins.ToString("N0")</h4>
+                        <small class="text-muted">Available</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction history -->
+    <div class="col-md-8">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-history mr-1"></i> Transaction History</h3>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th class="text-right">Amount</th>
+                            <th class="text-right">Before</th>
+                            <th class="text-right">After</th>
+                            <th>Note / Party</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tx in Model)
+                        {
+                            bool credit = IsCredit(tx.Type);
+                            <tr>
+                                <td style="font-size:11px;white-space:nowrap;">
+                                    @tx.CreatedAt?.ToString("dd/MM/yyyy HH:mm")
+                                </td>
+                                <td>
+                                    <span class="badge @(credit ? "badge-success" : "badge-danger")">
+                                        @tx.Type
+                                    </span>
+                                </td>
+                                <td class="text-right font-weight-bold @(credit ? "text-success" : "text-danger")">
+                                    @(credit ? "+" : "−")@tx.Amount.ToString("N0")
+                                </td>
+                                <td class="text-right text-muted small">@tx.BalanceBefore.ToString("N0")</td>
+                                <td class="text-right small">@tx.BalanceAfter.ToString("N0")</td>
+                                <td style="font-size:11px;">
+                                    @tx.Note
+                                    @if (tx.RelatedUser != null)
+                                    {
+                                        <span class="badge badge-secondary ml-1">
+                                            @(tx.Type == "transfer_out" ? "→" : "←") @tx.RelatedUser.DisplayName
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">No transactions yet.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (pages > 1)
+            {
+                <div class="card-footer">
+                    <ul class="pagination pagination-sm mb-0">
+                        @for (int i = 1; i <= pages; i++)
+                        {
+                            <li class="page-item @(i == page ? "active" : "")">
+                                <a class="page-link" href="?page=@i">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+</div>
