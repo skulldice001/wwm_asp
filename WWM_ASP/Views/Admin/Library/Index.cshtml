@@ -59,7 +59,7 @@
                 <option value="">All categories</option>
                 @foreach (var kv in LibraryArticle.Categories)
                 {
-                    <option value="@kv.Key" @(category == kv.Key ? "selected" : "")>@kv.Value</option>
+                    <option value="@kv.Key" selected="@(category == kv.Key ? "selected" : null)">@kv.Value</option>
                 }
             </select>
             <button class="btn btn-sm btn-primary" type="submit">

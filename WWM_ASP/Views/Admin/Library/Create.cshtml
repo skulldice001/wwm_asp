@@ -3,7 +3,7 @@
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
     ViewData["Title"]      = "New Article";
     ViewData["ActivePage"] = "library";
-    Model ??= new LibraryArticle { ContentFormat = "markdown" };
+    var formModel = Model ?? new LibraryArticle { ContentFormat = "markdown" };
 }
 
 <div class="card card-outline card-primary">
@@ -18,7 +18,7 @@
     <form method="post" action="/admin/library/create">
         @Html.AntiForgeryToken()
         <div class="card-body">
-            @await Html.PartialAsync("~/Views/Admin/Library/_Form.cshtml", Model)
+            @await Html.PartialAsync("~/Views/Admin/Library/_Form.cshtml", formModel)
         </div>
         <div class="card-footer">
             <button type="submit" class="btn btn-primary">

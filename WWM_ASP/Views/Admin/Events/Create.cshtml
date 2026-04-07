@@ -23,9 +23,9 @@
             <div class="form-group">
                 <label>Event Type <span class="text-danger">*</span></label>
                 <select name="type" id="eventType" class="form-control" required>
-                    <option value="casual"     @(initialType == "casual"     ? "selected" : "")>Casual</option>
-                    <option value="guild_war"  @(initialType == "guild_war"  ? "selected" : "")>Guild War</option>
-                    <option value="lucky_draw" @(initialType == "lucky_draw" ? "selected" : "")>Lucky Draw 🎲</option>
+                    <option value="casual"     selected="@(initialType == "casual"     ? "selected" : null)">Casual</option>
+                    <option value="guild_war"  selected="@(initialType == "guild_war"  ? "selected" : null)">Guild War</option>
+                    <option value="lucky_draw" selected="@(initialType == "lucky_draw" ? "selected" : null)">Lucky Draw 🎲</option>
                 </select>
             </div>
 

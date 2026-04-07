@@ -64,7 +64,7 @@
                         <select name="status" class="form-control">
                             @foreach (var s in new[] { "upcoming", "ongoing", "completed", "cancelled" })
                             {
-                                <option value="@s" @(Model.Status == s ? "selected" : "")>@s</option>
+                                <option value="@s" selected="@(Model.Status == s ? "selected" : null)">@s</option>
                             }
                         </select>
                     </div>
@@ -84,7 +84,7 @@
                     <select name="participantIds" class="form-control" multiple size="6">
                         @foreach (var u in users)
                         {
-                            <option value="@u.Id" @(participantIds.Contains(u.Id) ? "selected" : "")>
+                            <option value="@u.Id" selected="@(participantIds.Contains(u.Id) ? "selected" : null)">
                                 @u.Account (@u.Name)
                             </option>
                         }

@@ -37,7 +37,7 @@
                 <select name="role" class="form-control">
                     @foreach (var r in allowedRoles)
                     {
-                        <option value="@r" @(Model.Role == r ? "selected" : "")>
+                        <option value="@r" selected="@(Model.Role == r ? "selected" : null)">
                             @(r switch
                             {
                                 Staff.RoleMaster    => "Master",
