@@ -1,0 +1,85 @@
+@model Staff
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"]      = "My Profile";
+    ViewData["ActivePage"] = "profile";
+}
+
+<div class="row">
+    <!-- Profile info -->
+    <div class="col-md-6">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-user-edit mr-1"></i> Profile Info</h3>
+            </div>
+            <form method="post" action="/admin/profile/update">
+                @Html.AntiForgeryToken()
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>Account</label>
+                        <input type="text" class="form-control" value="@Model.Account" disabled>
+                        <small class="text-muted">Account cannot be changed.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" name="name" class="form-control" value="@Model.Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" class="form-control" value="@Model.Email">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <span class="badge @(Model.Role switch {
+                            Staff.RoleMaster    => "badge-danger",
+                            Staff.RoleAdmin     => "badge-warning",
+                            Staff.RoleObserver  => "badge-info",
+                            Staff.RoleLibrarian => "badge-secondary",
+                            _                   => "badge-light"
+                        }) p-2">@Model.RoleLabel</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-1"></i> Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change password -->
+    <div class="col-md-6">
+        <div class="card card-outline card-secondary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-key mr-1"></i> Change Password</h3>
+            </div>
+            @if (TempData["PwError"] != null)
+            {
+                <div class="alert alert-danger mx-3 mt-3">@TempData["PwError"]</div>
+            }
+            <form method="post" action="/admin/profile/password">
+                @Html.AntiForgeryToken()
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>Current password</label>
+                        <input type="password" name="currentPassword" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>New password</label>
+                        <input type="password" name="password" class="form-control" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm new password</label>
+                        <input type="password" name="passwordConfirm" class="form-control" required>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-secondary">
+                        <i class="fas fa-key mr-1"></i> Update Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
