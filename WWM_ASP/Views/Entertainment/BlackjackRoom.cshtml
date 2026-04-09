@@ -1,0 +1,539 @@
+@model WWM_ASP.Models.BlackjackTable
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+
+@{
+    Layout    = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"] = $"Blackjack – {Model.Name}";
+    long   myUserId = long.Parse(User.FindFirst("id")!.Value);
+    string myRole   = ViewBag.MyRole?.ToString() ?? "player";
+}
+
+<style>
+/* ── Layout ── */
+.room-wrap   { max-width:1180px;margin:0 auto;padding:16px 12px;display:flex;gap:16px;flex-wrap:wrap; }
+.room-main   { flex:1;min-width:640px; }
+.room-side   { width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:12px; }
+
+/* ── Header ── */
+.room-header { display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap; }
+.room-title  { color:#f0c040;font-size:1.4rem;font-weight:800; }
+.room-bet-range { color:#aaa;font-size:.85rem; }
+.room-phase  { padding:4px 14px;border-radius:20px;font-size:.78rem;font-weight:700; }
+.phase-betting   { background:#1d4ed8;color:#fff; }
+.phase-player    { background:#059669;color:#fff; }
+.phase-dealer    { background:#b45309;color:#fff; }
+.phase-finished  { background:#7c3aed;color:#fff; }
+.phase-lobby     { background:#374151;color:#ccc; }
+.btn-leave   { margin-left:auto;padding:7px 16px;background:#ef4444;color:#fff;border:none;
+               border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600; }
+
+/* ── Table ── */
+.felt        { background:radial-gradient(ellipse at center,#1a5c3a 0%,#0d3b25 70%,#071e13 100%);
+               border-radius:24px;padding:28px 20px;min-height:380px;position:relative;
+               border:3px solid rgba(255,255,255,.08); }
+
+/* ── Cards ── */
+.card        { width:54px;height:80px;background:#fff;border-radius:7px;border:1px solid #ddd;
+               display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+               font-size:1rem;font-weight:800;box-shadow:2px 3px 8px rgba(0,0,0,.5);
+               margin-right:4px;position:relative;overflow:hidden;flex-shrink:0; }
+.card.back   { background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;font-size:1.4rem; }
+.card.hearts,.card.diamonds { color:#dc2626; }
+.card.spades,.card.clubs    { color:#111; }
+.card-rank   { font-size:1rem;line-height:1; }
+.card-suit   { font-size:.9rem;line-height:1; }
+.card-row    { display:flex;flex-wrap:wrap;gap:2px;min-height:88px;align-items:center; }
+
+/* ── Dealer area ── */
+.dealer-area { margin-bottom:24px; }
+.dealer-label{ color:#aaa;font-size:.8rem;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em; }
+.dealer-name { color:#f0c040;font-weight:700;margin-bottom:8px; }
+.score-badge { display:inline-block;padding:2px 9px;background:rgba(0,0,0,.4);border-radius:12px;
+               color:#fff;font-size:.8rem;margin-left:8px; }
+.score-bust  { background:#ef4444; }
+.score-bj    { background:#f59e0b; }
+
+/* ── Players grid ── */
+.players-grid{ display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:16px; }
+.player-slot { background:rgba(0,0,0,.3);border-radius:12px;padding:12px;
+               border:2px solid rgba(255,255,255,.08);transition:border-color .2s; }
+.player-slot.my-turn  { border-color:#10b981;box-shadow:0 0 16px rgba(16,185,129,.4); }
+.player-slot.busted   { border-color:#ef4444;opacity:.7; }
+.player-slot.finished { border-color:rgba(255,255,255,.05); }
+.player-name { font-weight:700;font-size:.85rem;margin-bottom:4px;color:#e2e8f0; }
+.player-bet  { color:#fbbf24;font-size:.78rem;margin-bottom:8px; }
+.result-badge{ display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:700;margin-top:4px; }
+.result-win       { background:#10b981;color:#fff; }
+.result-blackjack { background:#f59e0b;color:#000; }
+.result-push      { background:#6b7280;color:#fff; }
+.result-bust,.result-lose { background:#ef4444;color:#fff; }
+.result-dealer_bust { background:#10b981;color:#fff; }
+.result-canceled  { background:#6b7280;color:#fff; }
+
+/* ── Lobby (before round) ── */
+.lobby-panel { background:rgba(0,0,0,.4);border-radius:14px;padding:20px;margin-top:12px; }
+.lobby-title { color:#f0c040;font-weight:700;margin-bottom:14px; }
+.player-row  { display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px;
+               background:rgba(255,255,255,.05);border-radius:8px; }
+.player-row .name { flex:1;font-size:.9rem; }
+.ready-dot   { width:10px;height:10px;border-radius:50%;background:#ef4444; }
+.ready-dot.on{ background:#10b981; }
+.role-tag    { padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:700; }
+.role-player { background:#1d4ed8;color:#fff; }
+.role-dealer { background:#b45309;color:#fff; }
+.role-none   { background:#374151;color:#aaa; }
+.seat-tag    { color:#aaa;font-size:.78rem;margin-left:4px; }
+.lobby-controls{ display:flex;gap:8px;flex-wrap:wrap;margin-top:14px; }
+.btn-role    { padding:8px 14px;border:none;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600; }
+.btn-role-player { background:#1d4ed8;color:#fff; }
+.btn-role-dealer { background:#b45309;color:#fff; }
+.btn-ready   { padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:8px;
+               cursor:pointer;font-weight:700; }
+.btn-start   { padding:8px 18px;background:#f59e0b;color:#000;border:none;border-radius:8px;
+               cursor:pointer;font-weight:700; }
+.countdown   { color:#f59e0b;font-size:1.1rem;font-weight:700;margin-top:8px; }
+
+/* ── Action panel ── */
+.action-panel { background:rgba(0,0,0,.4);border-radius:14px;padding:18px;margin-top:14px; }
+.bet-input-row{ display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px; }
+.bet-shortcuts{ display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px; }
+.btn-shortcut { padding:6px 12px;background:rgba(255,255,255,.1);color:#fff;border:none;
+                border-radius:6px;cursor:pointer;font-size:.82rem; }
+.btn-shortcut:hover { background:rgba(255,255,255,.2); }
+input[type=number] { padding:8px;background:#111;border:1px solid rgba(255,255,255,.15);
+                     border-radius:8px;color:#fff;font-size:.9rem;width:130px; }
+.btn-bet     { padding:9px 20px;background:#10b981;color:#fff;border:none;border-radius:8px;
+               cursor:pointer;font-weight:700;font-size:.9rem; }
+.game-btns   { display:flex;gap:8px;flex-wrap:wrap;margin-top:10px; }
+.btn-hit     { padding:10px 22px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+.btn-stand   { padding:10px 22px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+.btn-double  { padding:10px 22px;background:#f59e0b;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+.btn-dealer-hit   { padding:10px 22px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+.btn-dealer-stand { padding:10px 22px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+.btn-next    { padding:10px 24px;background:#f59e0b;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+.action-status { color:#aaa;font-size:.85rem;margin-top:6px; }
+
+/* ── Side panel ── */
+.info-card   { background:rgba(0,0,0,.35);border-radius:12px;padding:14px; }
+.info-label  { color:#aaa;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em; }
+.info-value  { color:#f0c040;font-size:1.2rem;font-weight:800;margin-top:2px; }
+.chat-panel  { background:rgba(0,0,0,.35);border-radius:12px;padding:14px;flex:1;display:flex;flex-direction:column; }
+.chat-title  { color:#aaa;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px; }
+.chat-msgs   { flex:1;overflow-y:auto;max-height:260px;display:flex;flex-direction:column;gap:6px; }
+.chat-msg    { background:rgba(255,255,255,.05);border-radius:8px;padding:6px 10px; }
+.chat-user   { font-weight:700;font-size:.78rem;color:#60a5fa; }
+.chat-text   { font-size:.82rem;color:#e2e8f0;word-break:break-word; }
+.chat-time   { font-size:.7rem;color:#555;float:right; }
+.chat-input-row{ display:flex;gap:6px;margin-top:8px; }
+.chat-input  { flex:1;padding:7px 10px;background:#111;border:1px solid rgba(255,255,255,.12);
+               border-radius:8px;color:#fff;font-size:.82rem; }
+.btn-chat-send { padding:7px 12px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer; }
+
+#toast { position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid rgba(255,255,255,.15);
+         color:#fff;padding:12px 20px;border-radius:10px;display:none;z-index:9999;font-size:.9rem; }
+</style>
+
+<div class="room-wrap">
+  <!-- Main area -->
+  <div class="room-main">
+    <div class="room-header">
+        <div class="room-title">♠ @Model.Name</div>
+        <div class="room-bet-range">@Model.MinBet.ToString("N0")–@Model.MaxBet.ToString("N0") Zoo</div>
+        <span class="room-phase phase-lobby" id="phaseTag">Đợi</span>
+        <button class="btn-leave" onclick="leaveTable()">Rời bàn</button>
+    </div>
+
+    <!-- Felt / game area -->
+    <div class="felt" id="feltArea">
+      <!-- Dealer area -->
+      <div class="dealer-area" id="dealerArea">
+          <div class="dealer-label">Nhà cái</div>
+          <div class="dealer-name" id="dealerName">—</div>
+          <div class="card-row" id="dealerCards"></div>
+      </div>
+
+      <!-- Players grid -->
+      <div class="players-grid" id="playersGrid"></div>
+    </div>
+
+    <!-- Lobby (before round starts) -->
+    <div class="lobby-panel" id="lobbyPanel" style="display:none;">
+        <div class="lobby-title">Phòng chờ</div>
+        <div id="playerList"></div>
+        <div class="lobby-controls" id="lobbyControls"></div>
+        <div class="countdown" id="countdown"></div>
+    </div>
+
+    <!-- Action panel -->
+    <div class="action-panel" id="actionPanel" style="display:none;">
+        <div id="betArea" style="display:none;">
+            <div class="bet-shortcuts" id="betShortcuts"></div>
+            <div class="bet-input-row">
+                <input type="number" id="betInput" min="@Model.MinBet" max="@Model.MaxBet" value="@Model.MinBet" step="@Model.MinBet">
+                <button class="btn-bet" onclick="placeBet()">Đặt cược</button>
+            </div>
+        </div>
+        <div class="game-btns" id="gameBtns" style="display:none;"></div>
+        <div class="action-status" id="actionStatus"></div>
+    </div>
+  </div>
+
+  <!-- Side -->
+  <div class="room-side">
+    <div class="info-card">
+        <div class="info-label">Số dư</div>
+        <div class="info-value" id="sideBalance">—</div>
+    </div>
+    <div class="chat-panel">
+        <div class="chat-title">Chat bàn</div>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="chat-input-row">
+            <input class="chat-input" id="chatInput" placeholder="Nhập tin nhắn…" maxlength="200"
+                   onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="btn-chat-send" onclick="sendChat()">Gửi</button>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+const TABLE_ID = @Model.Id;
+const CSRF     = '@Antiforgery.GetTokens(Context).RequestToken';
+const MY_ID    = @myUserId;
+const MIN_BET  = @Model.MinBet;
+const MAX_BET  = @Model.MaxBet;
+const IS_AI    = @(Model.IsAiMode ? "true" : "false");
+let   MY_ROLE  = '@myRole';
+let   state    = null;
+let   cdTimer  = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const SUIT_EMOJI = { spades:'♠', hearts:'♥', diamonds:'♦', clubs:'♣' };
+
+function cardHtml(c) {
+    if (c.suit === 'back') return `<div class="card back">🂠</div>`;
+    const cls = (c.suit === 'hearts' || c.suit === 'diamonds') ? 'hearts' : 'spades';
+    return `<div class="card ${cls}"><div class="card-rank">${c.rank}</div><div class="card-suit">${SUIT_EMOJI[c.suit]||''}</div></div>`;
+}
+
+function scoreHtml(score, bj, bust) {
+    if (bust) return `<span class="score-badge score-bust">Bùng!</span>`;
+    if (bj)   return `<span class="score-badge score-bj">Blackjack!</span>`;
+    return `<span class="score-badge">${score}</span>`;
+}
+
+function resultBadge(r) {
+    if (!r) return '';
+    const label = {win:'Thắng!',blackjack:'Blackjack!',dealer_bust:'Đại lý bùng!',push:'Hoà',lose:'Thua',bust:'Bùng!'};
+    return `<span class="result-badge result-${r}">${label[r]||r}</span>`;
+}
+
+function phaseLabel(p) {
+    return {betting:'Đặt cược',player_turns:'Lượt người chơi',dealer_turn:'Lượt nhà cái',finished:'Kết thúc',lobby:'Đợi'}[p] || p;
+}
+
+function setPhaseTag(p) {
+    const el = document.getElementById('phaseTag');
+    el.textContent = phaseLabel(p);
+    el.className = 'room-phase phase-' + (p === 'player_turns' ? 'player' : p === 'dealer_turn' ? 'dealer' : p === 'finished' ? 'finished' : p === 'betting' ? 'betting' : 'lobby');
+}
+
+function showToast(msg, ms=3000) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', ms);
+}
+
+function fmt(n) { return Number(n).toLocaleString(); }
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderLobby(data) {
+    // data = { phase:'lobby', players: [...], countdown_at, z_coins, my_role, my_seat }
+    MY_ROLE = data.my_role || MY_ROLE;
+    document.getElementById('sideBalance').textContent = fmt(data.z_coins) + ' Zoo';
+
+    document.getElementById('lobbyPanel').style.display  = 'block';
+    document.getElementById('actionPanel').style.display = 'none';
+    document.getElementById('dealerCards').innerHTML = '';
+    document.getElementById('dealerName').textContent = '—';
+    document.getElementById('playersGrid').innerHTML = '';
+    setPhaseTag('lobby');
+
+    const list = document.getElementById('playerList');
+    list.innerHTML = (data.players || []).map(p => `
+        <div class="player-row">
+            <div class="ready-dot ${p.is_ready ? 'on' : ''}"></div>
+            <div class="name">${esc(p.name)}${p.id == MY_ID ? ' <span style="color:#60a5fa;font-size:.75rem">(bạn)</span>' : ''}</div>
+            <span class="role-tag ${p.role === 'dealer' ? 'role-dealer' : p.role === 'player' ? 'role-player' : 'role-none'}">${p.role === 'dealer' ? 'Nhà cái' : p.role === 'player' ? `Người chơi${p.seat ? ' #'+p.seat : ''}` : '?'}</span>
+        </div>`).join('');
+
+    const myPivot = (data.players || []).find(p => p.id == MY_ID);
+    const ctrl    = document.getElementById('lobbyControls');
+    let html = '';
+    if (!IS_AI) {
+        html += `<button class="btn-role btn-role-player" onclick="chooseRole('player',1)">Người chơi</button>`;
+        html += `<button class="btn-role btn-role-dealer" onclick="chooseRole('dealer',0)">Nhà cái</button>`;
+    }
+    html += `<button class="btn-ready" onclick="toggleReady()">${myPivot?.is_ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}</button>`;
+    if (IS_AI || MY_ROLE === 'dealer')
+        html += `<button class="btn-start" onclick="startRound()">Bắt đầu ván</button>`;
+    ctrl.innerHTML = html;
+
+    if (data.countdown_at) startCountdown(data.countdown_at);
+    else { clearInterval(cdTimer); document.getElementById('countdown').textContent = ''; }
+}
+
+function renderRound(round) {
+    // round = { phase, dealer, players, turn_order, current_turn_user_id, my_balance, my_user_id, my_role, is_ai_mode }
+    document.getElementById('lobbyPanel').style.display  = 'none';
+    document.getElementById('actionPanel').style.display = 'block';
+    setPhaseTag(round.phase);
+
+    if (round.my_balance !== undefined)
+        document.getElementById('sideBalance').textContent = fmt(round.my_balance) + ' Zoo';
+    if (round.my_role) MY_ROLE = round.my_role;
+
+    // Dealer
+    const d = round.dealer;
+    document.getElementById('dealerName').textContent = d.name;
+    document.getElementById('dealerCards').innerHTML  = (d.cards || []).map(cardHtml).join('') + scoreHtml(d.score, d.blackjack, d.busted);
+
+    // Players
+    const grid = document.getElementById('playersGrid');
+    grid.innerHTML = (round.players || []).map(p => {
+        const isMe      = p.user_id == MY_ID;
+        const isMyTurn  = round.current_turn_user_id == p.user_id && round.phase === 'player_turns';
+        let cls = 'player-slot';
+        if (isMyTurn) cls += ' my-turn';
+        if (p.busted)  cls += ' busted';
+        if (round.phase === 'finished') cls += ' finished';
+        return `<div class="${cls}">
+            <div class="player-name">${esc(p.name)}${isMe?' <small style="color:#60a5fa">(bạn)</small>':''} <small style="color:#aaa">ghế ${p.seat}</small></div>
+            <div class="player-bet">Cược: ${fmt(p.bet)} Zoo${p.payout > 0 ? ` → +${fmt(p.payout)}`:''}</div>
+            <div class="card-row">${(p.cards||[]).map(cardHtml).join('')}${p.cards?.length ? scoreHtml(p.bet > 0 ? scoreCards(p.cards) : 0, p.blackjack, p.busted) : ''}</div>
+            ${resultBadge(p.result)}
+        </div>`;
+    }).join('');
+
+    // Action area
+    renderActions(round);
+}
+
+function scoreCards(cards) {
+    let total = 0, aces = 0;
+    for (const c of cards) {
+        if (c.suit === 'back') continue;
+        if (c.rank === 'A') { aces++; total += 11; }
+        else if (['J','Q','K','10'].includes(c.rank)) total += 10;
+        else total += parseInt(c.rank);
+    }
+    while (total > 21 && aces > 0) { total -= 10; aces--; }
+    return total;
+}
+
+function renderActions(round) {
+    const betArea  = document.getElementById('betArea');
+    const gameBtns = document.getElementById('gameBtns');
+    const status   = document.getElementById('actionStatus');
+    betArea.style.display = gameBtns.style.display = 'none';
+    status.textContent = '';
+
+    const myPlayer = (round.players || []).find(p => p.user_id == MY_ID);
+
+    if (round.phase === 'betting') {
+        if (!myPlayer || myPlayer.bet_placed) {
+            status.textContent = 'Đang chờ người khác đặt cược…';
+        } else {
+            betArea.style.display = 'block';
+            renderBetShortcuts();
+        }
+    } else if (round.phase === 'player_turns') {
+        const myTurn = round.current_turn_user_id == MY_ID;
+        if (!myTurn) {
+            const cur = (round.players || []).find(p => p.user_id == round.current_turn_user_id);
+            status.textContent = cur ? `Đang chờ ${cur.name}…` : 'Đang chờ…';
+        } else {
+            gameBtns.style.display = 'flex';
+            let btns = `<button class="btn-hit" onclick="sendAction('hit')">Rút (Hit)</button>
+                        <button class="btn-stand" onclick="sendAction('stand')">Dừng (Stand)</button>`;
+            if (myPlayer?.can_double) btns += `<button class="btn-double" onclick="sendAction('double')">Đôi (Double)</button>`;
+            gameBtns.innerHTML = btns;
+        }
+    } else if (round.phase === 'dealer_turn') {
+        if (MY_ROLE === 'dealer' && !round.is_ai_mode) {
+            gameBtns.style.display = 'flex';
+            gameBtns.innerHTML = `
+                <button class="btn-dealer-hit"   onclick="dealerAction('hit')">Rút (Hit)</button>
+                <button class="btn-dealer-stand" onclick="dealerAction('stand')">Dừng (Stand)</button>`;
+        } else {
+            status.textContent = 'Lượt nhà cái…';
+        }
+    } else if (round.phase === 'finished') {
+        gameBtns.style.display = 'flex';
+        if (IS_AI || MY_ROLE === 'dealer') {
+            gameBtns.innerHTML = `<button class="btn-next" onclick="nextRound()">Ván tiếp theo</button>`;
+        } else {
+            status.textContent = 'Ván kết thúc. Chờ nhà cái bắt đầu ván mới.';
+        }
+        // Show result toast for current user
+        const me = (round.players || []).find(p => p.user_id == MY_ID);
+        if (me?.result) {
+            const msgs = {win:`Thắng +${fmt(me.payout)} Zoo!`,blackjack:`Blackjack! +${fmt(me.payout)} Zoo!`,
+                          dealer_bust:`Nhà cái bùng! +${fmt(me.payout)} Zoo!`,push:`Hoà, nhận lại ${fmt(me.payout)} Zoo`,
+                          bust:'Bùng! Mất cược.',lose:'Thua! Mất cược.'};
+            showToast(msgs[me.result] || me.result, 5000);
+        }
+    }
+}
+
+function renderBetShortcuts() {
+    const shortcuts = [MIN_BET, MIN_BET*5, MIN_BET*10, MAX_BET].filter((v,i,a) => a.indexOf(v) === i);
+    document.getElementById('betShortcuts').innerHTML =
+        shortcuts.map(v => `<button class="btn-shortcut" onclick="setBet(${v})">${fmt(v)}</button>`).join('');
+}
+
+function setBet(v) { document.getElementById('betInput').value = v; }
+
+function renderLobbyPlayers(players) {
+    const list = document.getElementById('playerList');
+    list.innerHTML = players.map(p => `
+        <div class="player-row">
+            <div class="ready-dot ${p.is_ready ? 'on' : ''}"></div>
+            <div class="name">${esc(p.name)}${p.id == MY_ID ? ' <small style="color:#60a5fa">(bạn)</small>' : ''}</div>
+            <span class="role-tag ${p.role === 'dealer' ? 'role-dealer' : p.role === 'player' ? 'role-player' : 'role-none'}">${p.role === 'dealer' ? 'Nhà cái' : p.role === 'player' ? `Người chơi${p.seat ? ' #'+p.seat : ''}` : '?'}</span>
+        </div>`).join('');
+    const me = players.find(p => p.id == MY_ID);
+    const readyBtn = document.querySelector('.btn-ready');
+    if (readyBtn) readyBtn.textContent = me?.is_ready ? 'Hủy sẵn sàng' : 'Sẵn sàng';
+}
+
+function startCountdown(ts) {
+    clearInterval(cdTimer);
+    const el = document.getElementById('countdown');
+    cdTimer = setInterval(() => {
+        const sec = Math.max(0, Math.ceil(ts - Date.now()/1000));
+        el.textContent = sec > 0 ? `Bắt đầu sau ${sec}s…` : 'Bắt đầu!';
+        if (sec <= 0) { clearInterval(cdTimer); setTimeout(startRound, 500); }
+    }, 500);
+}
+
+// ── API calls ─────────────────────────────────────────────────────────────────
+async function api(path, body = null) {
+    const opts = { method: body !== null ? 'POST' : 'GET',
+                   headers: { 'Content-Type':'application/json','RequestVerificationToken':CSRF } };
+    if (body !== null) opts.body = JSON.stringify(body);
+    const r = await fetch(`/entertainment/blackjack/${TABLE_ID}${path}`, opts);
+    return r.json();
+}
+
+async function leaveTable() {
+    const d = await api('/leave', {});
+    if (d.redirect) window.location = d.redirect;
+    else showToast(d.error ?? 'Lỗi');
+}
+
+async function chooseRole(role, seat) {
+    if (role === 'player') {
+        seat = parseInt(prompt('Chọn ghế (1-7):') ?? '1');
+        if (!seat || seat < 1 || seat > 7) { showToast('Số ghế không hợp lệ'); return; }
+    }
+    const d = await api('/role', { role, seat: seat || 0 });
+    if (d.error) showToast(d.error);
+    else if (d.players) renderLobbyPlayers(d.players);
+}
+
+async function toggleReady() {
+    const d = await api('/ready', {});
+    if (d.error) showToast(d.error);
+    else if (d.players) {
+        renderLobbyPlayers(d.players);
+        if (d.countdown_at) startCountdown(d.countdown_at);
+        else { clearInterval(cdTimer); document.getElementById('countdown').textContent = ''; }
+    }
+}
+
+async function startRound() {
+    const d = await api('/game/start', {});
+    if (d.error) showToast(d.error);
+    else if (d.round) renderRound(d.round);
+}
+
+async function placeBet() {
+    const bet = parseInt(document.getElementById('betInput').value);
+    const d   = await api('/game/deal', { bet });
+    if (d.error) showToast(d.error);
+    else if (d.round) renderRound(d.round);
+}
+
+async function sendAction(action) {
+    const d = await api('/game/action', { action });
+    if (d.error) showToast(d.error);
+    else if (d.round) renderRound(d.round);
+}
+
+async function dealerAction(action) {
+    const d = await api('/game/dealer-action', { action });
+    if (d.error) showToast(d.error);
+    else if (d.round) renderRound(d.round);
+}
+
+async function nextRound() {
+    const d = await api('/game/next', {});
+    if (d.error) showToast(d.error);
+    else if (d.round) renderRound(d.round);
+}
+
+async function sendChat() {
+    const inp = document.getElementById('chatInput');
+    const msg = inp.value.trim();
+    if (!msg) return;
+    inp.value = '';
+    const d = await api('/chat', { message: msg });
+    if (d.error) showToast(d.error);
+}
+
+// ── SignalR ────────────────────────────────────────────────────────────────────
+const conn = new signalR.HubConnectionBuilder().withUrl('/hubs/blackjack').withAutomaticReconnect().build();
+
+conn.on('RoomEvent', e => {
+    if (e.type === 'ready_update' || e.type === 'countdown_start') {
+        if (e.players) renderLobbyPlayers(e.players);
+        if (e.type === 'countdown_start' && e.countdown_at) startCountdown(e.countdown_at);
+    } else if (['round_started','cards_dealt','bet_placed','player_acted','dealer_turn','round_finished'].includes(e.type)) {
+        if (e.round) renderRound(e.round);
+    } else if (e.type === 'chat_message' && e.chat) {
+        appendChat(e.chat);
+    }
+});
+
+conn.start().then(() => conn.invoke('JoinRoom', TABLE_ID));
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function appendChat(m) {
+    const box  = document.getElementById('chatMsgs');
+    const div  = document.createElement('div');
+    div.className = 'chat-msg';
+    div.innerHTML = `<span class="chat-user">${esc(m.name)}</span><span class="chat-time">${m.time||''}</span><div class="chat-text">${esc(m.message)}</div>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+}
+
+(async () => {
+    const r = await fetch(`/entertainment/blackjack/${TABLE_ID}/chat`);
+    const d = await r.json();
+    (d.messages || []).forEach(appendChat);
+})();
+
+// ── Initial state load ────────────────────────────────────────────────────────
+(async () => {
+    const d = await api('/game/state');
+    if (d.phase === 'lobby') renderLobby(d);
+    else if (d.round)        renderRound(d.round);
+})();
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+</script>

@@ -30,6 +30,9 @@ public class BlackjackTable
     [Column("is_preset")]
     public bool IsPreset { get; set; }
 
+    [Column("is_ai_mode")]
+    public bool IsAiMode { get; set; }
+
     [Column("created_at")]
     public DateTime? CreatedAt { get; set; }
 

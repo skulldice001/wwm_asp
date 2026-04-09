@@ -57,6 +57,7 @@ builder.Services.AddControllersWithViews()
 
 // ─── SignalR ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(options =>
@@ -102,5 +103,6 @@ app.MapControllerRoute(
 
 // ─── SignalR hubs ─────────────────────────────────────────────────────────────
 app.MapHub<TaixiuHub>("/hubs/taixiu");
+app.MapHub<BlackjackHub>("/hubs/blackjack");
 
 app.Run();

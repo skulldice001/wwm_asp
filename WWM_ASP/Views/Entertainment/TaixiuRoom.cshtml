@@ -6,8 +6,8 @@
     ViewData["ActivePage"] = "entertainment";
 
     long myUserId  = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    int  myBalance = (ViewBag.CurrentUser is WWM_ASP.Models.User u) ? u.AvailableZCoins
-                     : int.TryParse(User.FindFirst("z_coins")?.Value, out var z) ? z : 0;
+    long myBalance = (ViewBag.CurrentUser is WWM_ASP.Models.User u) ? u.AvailableZCoins
+                     : long.TryParse(User.FindFirst("z_coins")?.Value, out var z) ? z : 0;
 }
 
 @section Styles {

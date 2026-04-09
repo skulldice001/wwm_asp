@@ -18,7 +18,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TaixiuTablePlayer> TaixiuTablePlayers => Set<TaixiuTablePlayer>();
     public DbSet<TaixiuGame>        TaixiuGames        => Set<TaixiuGame>();
     public DbSet<TaixiuMessage>     TaixiuMessages     => Set<TaixiuMessage>();
-    public DbSet<BlackjackTable>    BlackjackTables    => Set<BlackjackTable>();
+    public DbSet<BlackjackTable>       BlackjackTables       => Set<BlackjackTable>();
+    public DbSet<BlackjackTablePlayer> BlackjackTablePlayers => Set<BlackjackTablePlayer>();
+    public DbSet<BlackjackRound>       BlackjackRounds       => Set<BlackjackRound>();
+    public DbSet<BlackjackMessage>     BlackjackMessages     => Set<BlackjackMessage>();
     public DbSet<BingoTable>        BingoTables        => Set<BingoTable>();
     public DbSet<TienLenTable>      TienLenTables      => Set<TienLenTable>();
     public DbSet<LotteryDraw>       LotteryDraws       => Set<LotteryDraw>();

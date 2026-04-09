@@ -195,7 +195,7 @@ public class TaixiuController(
 
         var game  = await TaixiuEngine.ActiveGameAsync(db, id);
         var user  = await db.Users.FindAsync(UserId);
-        int avail = user?.AvailableZCoins ?? 0;
+        long avail = user?.AvailableZCoins ?? 0;
 
         if (game == null)
         {

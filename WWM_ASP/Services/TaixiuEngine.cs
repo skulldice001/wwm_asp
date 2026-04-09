@@ -85,8 +85,8 @@ public static class TaixiuEngine
             }
 
             // Deduct new bet
-            int balBefore = user.ZCoins;
-            user.ZCoins  -= amount;
+            long balBefore = user.ZCoins;
+            user.ZCoins   -= amount;
             user.UpdatedAt = DateTime.UtcNow;
 
             db.ZooCoinTransactions.Add(new ZooCoinTransaction
@@ -187,8 +187,8 @@ public static class TaixiuEngine
             var user = await db.Users.FindAsync(bet.UserId);
             if (user == null) continue;
 
-            int balBefore = user.ZCoins;
-            user.ZCoins  += bet.Payout!.Value;
+            long balBefore = user.ZCoins;
+            user.ZCoins   += bet.Payout!.Value;
             user.UpdatedAt = DateTime.UtcNow;
 
             db.ZooCoinTransactions.Add(new ZooCoinTransaction

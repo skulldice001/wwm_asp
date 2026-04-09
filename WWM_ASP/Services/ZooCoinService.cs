@@ -20,12 +20,12 @@ public class ZooCoinService(AppDbContext db)
         if (amount <= 0)
             return (false, "Amount must be positive.");
 
-        int before = user.ZCoins;
+        long before = user.ZCoins;
 
         if (type == "deduct" && amount > before)
             return (false, $"Insufficient Zoo-coins (current: {before:N0}).");
 
-        int after = type == "add" ? before + amount : before - amount;
+        long after = type == "add" ? before + amount : before - amount;
 
         user.ZCoins    = after;
         user.UpdatedAt = DateTime.UtcNow;
@@ -76,8 +76,8 @@ public class ZooCoinService(AppDbContext db)
 
         var now = DateTime.UtcNow;
 
-        int senderBefore   = sender.ZCoins;
-        int receiverBefore = receiver.ZCoins;
+        long senderBefore   = sender.ZCoins;
+        long receiverBefore = receiver.ZCoins;
 
         sender.ZCoins    -= amount;
         receiver.ZCoins  += amount;

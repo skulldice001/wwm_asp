@@ -67,10 +67,10 @@ public class User
 
     // Zoo-coin
     [Column("z_coins")]
-    public int ZCoins { get; set; } = 5000;
+    public long ZCoins { get; set; } = 5000;
 
     [Column("z_coins_frozen")]
-    public int ZCoinsFrozen { get; set; } = 0;
+    public long ZCoinsFrozen { get; set; } = 0;
 
     // Skill references
     [Column("main_skill_id")]
@@ -90,7 +90,7 @@ public class User
     public DateTime? DeletedAt { get; set; }  // soft delete
 
     // ─── Computed helpers ──────────────────────────────────────────────────
-    public int AvailableZCoins => Math.Max(0, ZCoins - ZCoinsFrozen);
+    public long AvailableZCoins => Math.Max(0L, ZCoins - ZCoinsFrozen);
 
     public bool IsDeleted => DeletedAt.HasValue;
 

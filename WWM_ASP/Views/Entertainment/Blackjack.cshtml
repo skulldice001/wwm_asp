@@ -1,0 +1,224 @@
+@model List<WWM_ASP.Models.BlackjackTable>
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"] = "Blackjack";
+    long myUserId = long.Parse(User.FindFirst("id")!.Value);
+}
+
+<style>
+.bj-wrap      { max-width:1100px;margin:0 auto;padding:20px 12px; }
+.bj-title     { color:#f0c040;font-size:2rem;font-weight:800;text-shadow:0 2px 12px #000;margin-bottom:6px; }
+.bj-sub       { color:#aaa;margin-bottom:30px;font-size:1rem; }
+.bj-balance   { color:#4ade80;font-weight:700;font-size:1.1rem;display:inline-block;margin-left:16px; }
+.bj-actions   { display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap;align-items:center; }
+.btn-bj-new   { background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;
+                padding:10px 22px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.95rem; }
+.btn-bj-ai    { background:linear-gradient(135deg,#6366f1,#4338ca);color:#fff;border:none;
+                padding:10px 22px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.95rem; }
+.btn-bj-new:hover,.btn-bj-ai:hover { filter:brightness(1.1); }
+
+/* Table cards */
+.bj-grid      { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px; }
+.bj-card      { background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+                border-radius:14px;padding:20px;transition:transform .15s; }
+.bj-card:hover{ transform:translateY(-2px);border-color:rgba(240,192,64,.35); }
+.bj-card-name { font-size:1.05rem;font-weight:700;color:#f0f0f0;margin-bottom:8px; }
+.bj-badge     { display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:700;margin-left:8px; }
+.bj-badge-ai  { background:#6366f1;color:#fff; }
+.bj-badge-full{ background:#ef4444;color:#fff; }
+.bj-card-meta { color:#999;font-size:.82rem;margin-bottom:14px; }
+.bj-card-meta span { margin-right:12px; }
+.btn-join     { width:100%;padding:9px;background:linear-gradient(135deg,#10b981,#059669);
+                color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer; }
+.btn-join:hover { filter:brightness(1.1); }
+.btn-join:disabled { background:#555;cursor:not-allowed; }
+.bj-empty     { color:#777;text-align:center;padding:60px 20px;font-size:1.1rem; }
+
+/* Modal */
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;align-items:center;justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-box   { background:#1e1e2e;border:1px solid rgba(255,255,255,.15);border-radius:16px;
+               padding:28px 32px;width:min(420px,95vw); }
+.modal-title { color:#f0c040;font-size:1.2rem;font-weight:800;margin-bottom:20px; }
+.form-group  { margin-bottom:16px; }
+.form-group label { display:block;color:#ccc;font-size:.85rem;margin-bottom:6px; }
+.form-group input,.form-group select {
+    width:100%;padding:10px;background:#111;border:1px solid rgba(255,255,255,.15);
+    border-radius:8px;color:#fff;font-size:.9rem;box-sizing:border-box; }
+.modal-footer{ display:flex;gap:10px;margin-top:20px;justify-content:flex-end; }
+.btn-cancel  { padding:9px 18px;background:#333;color:#ccc;border:none;border-radius:8px;cursor:pointer; }
+.btn-submit  { padding:9px 22px;background:#f59e0b;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer; }
+#toast       { position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid rgba(255,255,255,.15);
+               color:#fff;padding:12px 20px;border-radius:10px;display:none;z-index:9999;font-size:.9rem; }
+</style>
+
+<div class="bj-wrap">
+    <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;">
+        <div class="bj-title">♠ Blackjack</div>
+        <span class="bj-balance" id="balanceDisplay">@ViewBag.Balance.ToString("N0") Zoo</span>
+    </div>
+    <div class="bj-sub">Đánh bại nhà cái để nhân đôi cược. Blackjack trả 3:2.</div>
+
+    <div class="bj-actions">
+        <button class="btn-bj-new" onclick="openModal()">+ Tạo bàn mới</button>
+        <button class="btn-bj-ai"  onclick="createAi()">⚡ Chơi vs AI</button>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="bj-empty" id="tableContainer">
+            Chưa có bàn nào. Hãy tạo bàn để bắt đầu!
+        </div>
+    }
+    else
+    {
+        <div class="bj-grid" id="tableContainer">
+            @foreach (var t in Model)
+            {
+                bool full = t.CurrentPlayers >= t.MaxPlayers;
+                <div class="bj-card" id="table-@t.Id">
+                    <div class="bj-card-name">
+                        @t.Name
+                        @if (t.IsAiMode) { <span class="bj-badge bj-badge-ai">AI</span> }
+                        @if (full)       { <span class="bj-badge bj-badge-full">FULL</span> }
+                    </div>
+                    <div class="bj-card-meta">
+                        <span>Cược: @t.MinBet.ToString("N0")–@t.MaxBet.ToString("N0") Zoo</span>
+                        <span>@t.CurrentPlayers/@t.MaxPlayers người</span>
+                    </div>
+                    <button class="btn-join" @(full ? "disabled" : "")
+                            onclick="joinTable(@t.Id, this)">
+                        @(full ? "Đầy" : "Vào bàn")
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Create table modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal-box">
+        <div class="modal-title">Tạo bàn Blackjack</div>
+        <div class="form-group">
+            <label>Tên bàn</label>
+            <input id="tableName" type="text" maxlength="60" placeholder="VD: Bàn của tôi">
+        </div>
+        <div class="form-group">
+            <label>Cược tối thiểu (Zoo)</label>
+            <input id="minBet" type="number" min="1" value="100">
+        </div>
+        <div class="form-group">
+            <label>Cược tối đa (Zoo)</label>
+            <input id="maxBet" type="number" min="1" value="10000">
+        </div>
+        <div class="form-group">
+            <label>Số người chơi tối đa</label>
+            <select id="maxPlayers">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6" selected>6</option>
+                <option value="7">7</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal()">Hủy</button>
+            <button class="btn-submit" onclick="createTable()">Tạo bàn</button>
+        </div>
+    </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+const CSRF    = '@Antiforgery.GetTokens(Context).RequestToken';
+const MY_ID   = @myUserId;
+
+function openModal()  { document.getElementById('createModal').classList.add('open'); }
+function closeModal() { document.getElementById('createModal').classList.remove('open'); }
+
+function showToast(msg, ms = 3000) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', ms);
+}
+
+async function createTable() {
+    const body = {
+        name:       document.getElementById('tableName').value || 'Bàn Blackjack',
+        minBet:     +document.getElementById('minBet').value,
+        maxBet:     +document.getElementById('maxBet').value,
+        maxPlayers: +document.getElementById('maxPlayers').value,
+    };
+    const r = await fetch('/entertainment/blackjack/create', {
+        method:'POST', headers:{'Content-Type':'application/json','RequestVerificationToken':CSRF},
+        body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (d.redirect) window.location = d.redirect;
+    else showToast(d.error ?? 'Lỗi');
+}
+
+async function createAi() {
+    const r = await fetch('/entertainment/blackjack/ai', {
+        method:'POST', headers:{'RequestVerificationToken':CSRF}
+    });
+    const d = await r.json();
+    if (d.redirect) window.location = d.redirect;
+    else showToast(d.error ?? 'Lỗi');
+}
+
+async function joinTable(id, btn) {
+    btn.disabled = true; btn.textContent = '...';
+    const r = await fetch(`/entertainment/blackjack/${id}/join`, {
+        method:'POST', headers:{'RequestVerificationToken':CSRF}
+    });
+    const d = await r.json();
+    if (d.redirect) window.location = d.redirect;
+    else { showToast(d.error ?? 'Lỗi'); btn.disabled = false; btn.textContent = 'Vào bàn'; }
+}
+
+// ── SignalR lobby ────────────────────────────────────────────────────────────
+const conn = new signalR.HubConnectionBuilder().withUrl('/hubs/blackjack').withAutomaticReconnect().build();
+conn.on('LobbyEvent', e => {
+    if (e.type === 'table_created' || e.type === 'table_updated') upsertTable(e.table);
+    if (e.type === 'table_removed') removeTable(e.table_id);
+});
+conn.start().then(() => conn.invoke('JoinLobby'));
+
+function upsertTable(t) {
+    const grid = document.getElementById('tableContainer');
+    let el = document.getElementById('table-' + t.id);
+    const full = t.current_players >= t.max_players;
+    const html = `
+        <div class="bj-card-name">${esc(t.name)}${t.is_ai_mode?'<span class="bj-badge bj-badge-ai">AI</span>':''}${full?'<span class="bj-badge bj-badge-full">FULL</span>':''}</div>
+        <div class="bj-card-meta">
+            <span>Cược: ${t.min_bet.toLocaleString()}–${t.max_bet.toLocaleString()} Zoo</span>
+            <span>${t.current_players}/${t.max_players} người</span>
+        </div>
+        <button class="btn-join" ${full?'disabled':''} onclick="joinTable(${t.id},this)">${full?'Đầy':'Vào bàn'}</button>`;
+    if (el) { el.innerHTML = html; }
+    else {
+        // Remove empty message if present
+        if (grid.querySelector('.bj-empty')) grid.innerHTML = '';
+        // Make grid if it's not already
+        if (!grid.classList.contains('bj-grid')) { grid.className = 'bj-grid'; grid.id = 'tableContainer'; }
+        el = document.createElement('div');
+        el.className = 'bj-card'; el.id = 'table-' + t.id;
+        el.innerHTML = html;
+        grid.appendChild(el);
+    }
+}
+
+function removeTable(id) {
+    const el = document.getElementById('table-' + id);
+    if (el) el.remove();
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+</script>

@@ -78,8 +78,8 @@ public class LotteryController(AppDbContext db) : Controller
             if (user.AvailableZCoins < req.BetAmount)
                 return Json(new { error = "Không đủ Zoo để mua vé." });
 
-            int balBefore = user.ZCoins;
-            user.ZCoins   -= req.BetAmount;
+            long balBefore = user.ZCoins;
+            user.ZCoins    -= req.BetAmount;
             user.UpdatedAt = DateTime.UtcNow;
 
             db.ZooCoinTransactions.Add(new ZooCoinTransaction
@@ -151,8 +151,8 @@ public class LotteryController(AppDbContext db) : Controller
             if (user.AvailableZCoins < price)
                 return Json(new { error = $"Không đủ Zoo. Cần {price} Zoo." });
 
-            int balBefore = user.ZCoins;
-            user.ZCoins   -= price;
+            long balBefore = user.ZCoins;
+            user.ZCoins    -= price;
             user.UpdatedAt = DateTime.UtcNow;
 
             db.ZooCoinTransactions.Add(new ZooCoinTransaction

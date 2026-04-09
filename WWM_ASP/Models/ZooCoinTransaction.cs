@@ -17,13 +17,13 @@ public class ZooCoinTransaction
     public string Type { get; set; } = string.Empty;  // add, deduct, transfer_in, transfer_out, game_win, game_loss, etc.
 
     [Column("amount")]
-    public int Amount { get; set; }
+    public long Amount { get; set; }
 
     [Column("balance_before")]
-    public int BalanceBefore { get; set; }
+    public long BalanceBefore { get; set; }
 
     [Column("balance_after")]
-    public int BalanceAfter { get; set; }
+    public long BalanceAfter { get; set; }
 
     [Column("note")]
     public string? Note { get; set; }
