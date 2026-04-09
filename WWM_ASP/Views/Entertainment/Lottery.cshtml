@@ -1,0 +1,567 @@
+@using System.Text.Json
+@using WWM_ASP.Models
+@{
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+    ViewData["Title"]      = "Xổ Số Zoo";
+    ViewData["ActivePage"] = "entertainment";
+
+    LotteryDraw daily    = ViewBag.Daily;
+    LotteryDraw weekly   = ViewBag.Weekly;
+    LotteryDraw jackpot  = ViewBag.Jackpot;
+    var dailyTickets     = (List<LotteryTicket>)ViewBag.DailyTickets;
+    var weeklyTickets    = (List<LotteryTicket>)ViewBag.WeeklyTickets;
+    var jackpotTickets   = (List<LotteryTicket>)ViewBag.JackpotTickets;
+    var recentDaily      = (List<LotteryDraw>)ViewBag.RecentDaily;
+    var recentWeekly     = (List<LotteryDraw>)ViewBag.RecentWeekly;
+    var recentJackpot    = (List<LotteryDraw>)ViewBag.RecentJackpot;
+    int balance          = ViewBag.Balance;
+    var myHistory        = (List<object>)ViewBag.MyHistory;
+    dynamic? lastDaily   = ViewBag.LastSettledDaily;
+    dynamic? lastWeekly  = ViewBag.LastSettledWeekly;
+
+    long dailyDrawAt  = daily.DrawAt.HasValue  ? (long)daily.DrawAt.Value.Subtract(DateTime.UnixEpoch).TotalSeconds  : 0;
+    long weeklyDrawAt = weekly.DrawAt.HasValue ? (long)weekly.DrawAt.Value.Subtract(DateTime.UnixEpoch).TotalSeconds : 0;
+    long jpDrawAt     = jackpot.DrawAt.HasValue ? (long)jackpot.DrawAt.Value.Subtract(DateTime.UnixEpoch).TotalSeconds : 0;
+}
+
+@section Styles {
+<style>
+.lottery-wrap { max-width:960px; margin:0 auto; }
+.lottery-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.lottery-title  { font-size:22px; font-weight:900; color:#fff; }
+
+.lottery-cards { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+@@media(max-width:640px){ .lottery-cards { grid-template-columns:1fr; } }
+
+.lottery-card { position:relative; border-radius:16px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.45); }
+.lottery-card-daily  { background:linear-gradient(145deg,#1a0533 0%,#7b2d8b 55%,#1a0533 100%); }
+.lottery-card-weekly { background:linear-gradient(145deg,#0d1a3a 0%,#1a3a8a 55%,#0d1a3a 100%); }
+.lottery-card-stripe { height:3px; background:linear-gradient(90deg,#7b2fbe,#f0c040,#7b2fbe); }
+.lottery-card-weekly .lottery-card-stripe { background:linear-gradient(90deg,#1a3a8a,#c084fc,#1a3a8a); }
+.lottery-card-body   { padding:20px; }
+
+.lt-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; background:rgba(240,192,64,.15); color:#f0c040; border:1px solid rgba(240,192,64,.3); margin-bottom:10px; }
+.lt-badge.weekly { background:rgba(192,132,252,.15); color:#c084fc; border-color:rgba(192,132,252,.3); }
+.lt-mult  { font-size:36px; font-weight:900; color:#f0c040; line-height:1; }
+.lt-mult.weekly { color:#c084fc; }
+.lt-label { font-size:12px; color:rgba(255,255,255,.4); margin-bottom:12px; }
+
+.lt-countdown { font-size:13px; color:#aaa; margin-bottom:8px; }
+.lt-countdown-val { font-weight:800; color:#f0c040; }
+.lt-countdown-val.weekly { color:#c084fc; }
+.lt-drawn-badge { font-size:13px; color:rgba(255,255,255,.6); margin-bottom:8px; }
+
+.lt-pot-info { display:flex; gap:12px; margin-bottom:14px; }
+.lt-pot-info > div { flex:1; background:rgba(0,0,0,.3); border-radius:8px; padding:8px; text-align:center; }
+
+.lt-num-grid { display:grid; grid-template-columns:repeat(11,1fr); gap:3px; margin-bottom:8px; }
+.lt-num-btn {
+    aspect-ratio:1; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
+    color:#ddd; border-radius:5px; font-size:10px; font-weight:700; cursor:pointer; padding:0;
+    transition:all .15s;
+}
+.lt-num-btn:hover { background:rgba(240,192,64,.2); }
+.lt-num-btn.sel   { background:#f0c040; color:#000; border-color:#f0c040; }
+.lt-num-btn.sel.weekly { background:#c084fc; color:#000; border-color:#c084fc; }
+
+.lt-tiers { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.lt-tier { padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#ddd; }
+.lt-tier.sel { background:#f0c040; color:#000; border-color:#f0c040; }
+.lt-tier.sel.weekly { background:#c084fc; color:#000; border-color:#c084fc; }
+.lt-buy-btn { background:#f0c040; color:#000; font-weight:800; border:none; border-radius:8px; padding:8px; cursor:pointer; width:100%; }
+.lt-buy-btn.weekly { background:#c084fc; }
+.lt-buy-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+.lt-ticket-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:12px; }
+.lt-ticket-num { background:#f0c040; color:#000; border-radius:4px; padding:2px 6px; font-weight:900; font-size:13px; }
+.lt-ticket-num.weekly { background:#c084fc; }
+.lt-bought { background:rgba(46,204,113,.1); border:1px solid rgba(46,204,113,.3); border-radius:8px; padding:8px 12px; color:#2ecc71; font-size:13px; margin-top:8px; }
+.lt-result-num { background:#f0c040; color:#000; border-radius:4px; padding:2px 8px; font-weight:900; font-size:14px; }
+.lt-result-num.weekly { background:#c084fc; }
+.lt-result-num.jp { background:linear-gradient(90deg,#f0c040,#ff9f43); font-size:16px; padding:3px 10px; }
+.lt-res-banner { background:rgba(0,0,0,.3); border:1px solid rgba(240,192,64,.3); border-radius:8px; padding:10px; margin-top:8px; font-size:12px; }
+.lt-res-banner.weekly { border-color:rgba(192,132,252,.3); }
+
+/* Jackpot */
+.lt-jp-card { position:relative; border-radius:16px; overflow:hidden; margin-bottom:18px; background:linear-gradient(145deg,#1a0a00 0%,#5a2e00 40%,#1a0a00 100%); box-shadow:0 8px 40px rgba(255,159,0,.25); }
+.lt-jp-stripe { height:4px; background:linear-gradient(90deg,#ff6b00,#f6c23e,#ff9f43,#f6c23e,#ff6b00); }
+.lt-jp-body   { padding:20px; }
+.lt-jp-pot-amount { font-size:40px; font-weight:900; color:#f6c23e; line-height:1.1; }
+.lt-jp-input { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#fff; border-radius:8px; padding:8px 12px; font-size:16px; text-align:center; width:100%; }
+.lt-jp-buy-btn { background:linear-gradient(90deg,#ff9f43,#f6c23e); color:#000; font-weight:900; border:none; border-radius:8px; padding:10px; cursor:pointer; width:100%; font-size:14px; }
+.lt-jp-buy-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+.lt-history { background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:16px; }
+</style>
+}
+
+<div class="lottery-wrap">
+    <!-- Header -->
+    <div class="lottery-header">
+        <a href="/entertainment" class="btn btn-sm btn-secondary"><i class="fas fa-arrow-left mr-1"></i> Sảnh</a>
+        <span class="lottery-title"><i class="fas fa-ticket-alt mr-2" style="color:#f6c23e;"></i>Xổ Số Zoo</span>
+        <div>
+            <i class="fas fa-coins mr-1" style="color:#f6c23e;"></i>
+            <span id="balDisp" style="color:#f6c23e;font-weight:800;">@balance.ToString("N0")</span>
+            <small class="text-muted ml-1">Zoo</small>
+        </div>
+    </div>
+
+    <!-- Daily & Weekly cards -->
+    <div class="lottery-cards">
+
+        @* ── Daily ── *@
+        <div class="lottery-card lottery-card-daily">
+            <div class="lottery-card-stripe"></div>
+            <div class="lottery-card-body">
+                <div class="lt-badge">Hàng Ngày · Đóng bán 19h · Rút thưởng 20h</div>
+                <div class="lt-mult">×@daily.Multiplier</div>
+                <div class="lt-label">Rút @daily.PickCount số · Phạm vi 01–99</div>
+
+                @if (daily.Status == "open" && daily.SecondsUntilClose() > 0)
+                {
+                    <div class="lt-countdown">
+                        <i class="fas fa-clock mr-1"></i> Đóng bán sau:
+                        <span class="lt-countdown-val" id="dailyClose"></span>
+                    </div>
+                }
+                else if (daily.WinningNumbers != null)
+                {
+                    <div class="lt-drawn-badge">
+                        <i class="fas fa-check-circle mr-1 text-success"></i>
+                        Đã quay: @string.Join(" · ", daily.WinningNumbers.Select(n => n.ToString("D2")))
+                    </div>
+                }
+
+                @if (lastDaily != null && daily.SecondsUntilOpen() > 0)
+                {
+                    <div class="lt-res-banner" id="dailyResultBanner">
+                        <div style="font-weight:700;color:#aaa;margin-bottom:6px;">
+                            <i class="fas fa-star mr-1" style="color:#f0c040;"></i> Kết quả ngày @(lastDaily!.draw_at)
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+                            @foreach (var n in (int[])(lastDaily.winning_numbers ?? new int[0]))
+                            {
+                                <span class="lt-result-num">@n.ToString("D2")</span>
+                            }
+                        </div>
+                        @if (lastDaily.my_ticket != null && (bool?)lastDaily.my_ticket.is_winner == true)
+                        {
+                            <div style="color:#f0c040;font-weight:700;">
+                                <i class="fas fa-trophy mr-1"></i> Bạn trúng số @((int)lastDaily.my_ticket.picked_number).ToString("D2")!
+                                Nhận +@((long)lastDaily.my_ticket.payout).ToString("N0") Zoo
+                            </div>
+                        }
+                        else if (lastDaily.my_ticket != null)
+                        {
+                            <div style="color:rgba(255,255,255,.5);">Số @((int)lastDaily.my_ticket.picked_number).ToString("D2") chưa trúng.</div>
+                        }
+                        <button class="btn btn-secondary btn-xs mt-1" onclick="document.getElementById('dailyResultBanner').style.display='none'">Đóng</button>
+                    </div>
+                }
+
+                <div class="lt-pot-info">
+                    <div>
+                        <div style="font-size:11px;color:#aaa;">Tổng vé</div>
+                        <div style="font-size:15px;font-weight:700;">@daily.TotalTickets</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#aaa;">Tổng cược</div>
+                        <div style="font-size:15px;font-weight:700;color:#f6c23e;">@daily.TotalPot.ToString("N0") Zoo</div>
+                    </div>
+                </div>
+
+                @if (daily.IsOpen() && !dailyTickets.Any())
+                {
+                    <div id="dailyForm">
+                        <div class="lt-num-grid" id="dailyGrid"></div>
+                        <div class="lt-tiers" id="dailyTiers"></div>
+                        <div id="dailyPreview" style="font-size:11px;color:#aaa;text-align:center;margin-bottom:8px;display:none;"></div>
+                        <button class="lt-buy-btn" id="dailyBuyBtn" onclick="buyTicket('daily')">
+                            <i class="fas fa-ticket-alt mr-1"></i> Mua Vé
+                        </button>
+                    </div>
+                }
+                else if (daily.IsOpen() && dailyTickets.Any())
+                {
+                    <div class="lt-bought"><i class="fas fa-check-circle mr-1"></i> Bạn đã mua vé cho giải hôm nay.</div>
+                }
+
+                @if (dailyTickets.Any())
+                {
+                    <div class="mt-2" style="border-top:1px solid rgba(255,255,255,.1);padding-top:8px;">
+                        <div style="font-size:11px;color:#aaa;font-weight:700;margin-bottom:4px;">Vé của bạn:</div>
+                        @foreach (var t in dailyTickets)
+                        {
+                            <div class="lt-ticket-row">
+                                <span class="lt-ticket-num">@t.PickedNumber.ToString("D2")</span>
+                                <span class="text-muted">@t.BetAmount.ToString("N0") Zoo</span>
+                                @if (t.IsWinner == true) { <span class="badge badge-success ml-auto">+@t.Payout.ToString("N0")</span> }
+                                else if (t.IsWinner == false) { <span class="badge badge-danger ml-auto">Trượt</span> }
+                                else { <span class="badge badge-secondary ml-auto">Chờ</span> }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ── Weekly ── *@
+        <div class="lottery-card lottery-card-weekly">
+            <div class="lottery-card-stripe"></div>
+            <div class="lottery-card-body">
+                <div class="lt-badge weekly">Hàng Tuần · Thứ 7 · 21:00</div>
+                <div class="lt-mult weekly">×@weekly.Multiplier</div>
+                <div class="lt-label">Rút @weekly.PickCount số · Phạm vi 01–99</div>
+
+                @if (weekly.Status == "open" && weekly.SecondsUntilClose() > 0)
+                {
+                    <div class="lt-countdown">
+                        <i class="fas fa-clock mr-1"></i> Đóng bán sau:
+                        <span class="lt-countdown-val weekly" id="weeklyClose"></span>
+                    </div>
+                }
+                else if (weekly.WinningNumbers != null)
+                {
+                    <div class="lt-drawn-badge">
+                        <i class="fas fa-check-circle mr-1 text-success"></i>
+                        Đã quay: @string.Join(" · ", weekly.WinningNumbers.Select(n => n.ToString("D2")))
+                    </div>
+                }
+
+                @if (lastWeekly != null && weekly.SecondsUntilOpen() > 0)
+                {
+                    <div class="lt-res-banner weekly" id="weeklyResultBanner">
+                        <div style="font-weight:700;color:#aaa;margin-bottom:6px;">
+                            <i class="fas fa-star mr-1" style="color:#c084fc;"></i> Kết quả tuần @(lastWeekly!.draw_at)
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+                            @foreach (var n in (int[])(lastWeekly.winning_numbers ?? new int[0]))
+                            {
+                                <span class="lt-result-num weekly">@n.ToString("D2")</span>
+                            }
+                        </div>
+                        @if (lastWeekly.my_ticket != null && (bool?)lastWeekly.my_ticket.is_winner == true)
+                        {
+                            <div style="color:#c084fc;font-weight:700;">
+                                <i class="fas fa-trophy mr-1"></i> Bạn trúng! Nhận +@((long)lastWeekly.my_ticket.payout).ToString("N0") Zoo
+                            </div>
+                        }
+                        else if (lastWeekly.my_ticket != null)
+                        {
+                            <div style="color:rgba(255,255,255,.5);">Số @((int)lastWeekly.my_ticket.picked_number).ToString("D2") chưa trúng.</div>
+                        }
+                        <button class="btn btn-secondary btn-xs mt-1" onclick="document.getElementById('weeklyResultBanner').style.display='none'">Đóng</button>
+                    </div>
+                }
+
+                <div class="lt-pot-info">
+                    <div>
+                        <div style="font-size:11px;color:#aaa;">Tổng vé</div>
+                        <div style="font-size:15px;font-weight:700;">@weekly.TotalTickets</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#aaa;">Tổng cược</div>
+                        <div style="font-size:15px;font-weight:700;color:#f6c23e;">@weekly.TotalPot.ToString("N0") Zoo</div>
+                    </div>
+                </div>
+
+                @if (weekly.IsOpen() && !weeklyTickets.Any())
+                {
+                    <div id="weeklyForm">
+                        <div class="lt-num-grid" id="weeklyGrid"></div>
+                        <div class="lt-tiers" id="weeklyTiers"></div>
+                        <div id="weeklyPreview" style="font-size:11px;color:#aaa;text-align:center;margin-bottom:8px;display:none;"></div>
+                        <button class="lt-buy-btn weekly" id="weeklyBuyBtn" onclick="buyTicket('weekly')">
+                            <i class="fas fa-ticket-alt mr-1"></i> Mua Vé
+                        </button>
+                    </div>
+                }
+                else if (weekly.IsOpen() && weeklyTickets.Any())
+                {
+                    <div class="lt-bought" style="border-color:rgba(192,132,252,.3);color:#c084fc;"><i class="fas fa-check-circle mr-1"></i> Bạn đã mua vé cho giải tuần này.</div>
+                }
+
+                @if (weeklyTickets.Any())
+                {
+                    <div class="mt-2" style="border-top:1px solid rgba(255,255,255,.1);padding-top:8px;">
+                        <div style="font-size:11px;color:#aaa;font-weight:700;margin-bottom:4px;">Vé của bạn:</div>
+                        @foreach (var t in weeklyTickets)
+                        {
+                            <div class="lt-ticket-row">
+                                <span class="lt-ticket-num weekly">@t.PickedNumber.ToString("D2")</span>
+                                <span class="text-muted">@t.BetAmount.ToString("N0") Zoo</span>
+                                @if (t.IsWinner == true) { <span class="badge badge-success ml-auto">+@t.Payout.ToString("N0")</span> }
+                                else if (t.IsWinner == false) { <span class="badge badge-danger ml-auto">Trượt</span> }
+                                else { <span class="badge badge-secondary ml-auto">Chờ</span> }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div><!-- /lottery-cards -->
+
+    <!-- Jackpot card -->
+    <div class="lt-jp-card">
+        <div class="lt-jp-stripe"></div>
+        <div class="lt-jp-body">
+            <div class="d-flex align-items-center justify-content-between flex-wrap mb-3" style="gap:6px;">
+                <span style="background:rgba(246,194,62,.15);color:#f6c23e;border:1px solid rgba(246,194,62,.3);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;letter-spacing:.8px;">
+                    🎰 JACKPOT · Quay số mỗi ngày 20:30
+                </span>
+                <span style="font-size:12px;color:rgba(255,255,255,.5);">
+                    Vé: <strong style="color:#f6c23e;">500 Zoo</strong> / lần · Chọn 1 số 000–999
+                </span>
+            </div>
+            <div class="text-center mb-3">
+                <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;">Tổng giải thưởng</div>
+                <div class="lt-jp-pot-amount" id="jpPotAmt">@jackpot.TotalPot.ToString("N0")</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;">
+                    @jackpot.TotalTickets vé đã mua
+                    @if (jpDrawAt > 0) { <span> · còn <strong id="jpCountdown" style="color:#fbbf24;"></strong></span> }
+                </div>
+            </div>
+
+            @if (jackpotTickets.Any())
+            {
+                <div style="text-align:center;padding:12px;background:rgba(246,194,62,.1);border:1px solid rgba(246,194,62,.3);border-radius:8px;color:#f6c23e;font-weight:800;margin-bottom:12px;">
+                    ✅ Bạn đã mua vé Jackpot hôm nay.
+                </div>
+                <div style="border-top:1px solid rgba(255,255,255,.1);padding-top:8px;">
+                    @foreach (var t in jackpotTickets)
+                    {
+                        <div class="lt-ticket-row">
+                            <span class="lt-result-num jp">@t.PickedNumber.ToString("D3")</span>
+                            <span class="text-muted ml-2">500 Zoo</span>
+                            @if (t.IsWinner == true) { <span class="badge badge-warning ml-auto">🎰 Trúng! +@t.Payout.ToString("N0")</span> }
+                            else if (t.IsWinner == false) { <span class="badge badge-secondary ml-auto">Chưa trúng</span> }
+                            else { <span class="badge badge-secondary ml-auto">Chờ</span> }
+                        </div>
+                    }
+                </div>
+            }
+            else if (jackpot.Status == "open")
+            {
+                <div style="max-width:360px;margin:0 auto;" id="jpFormArea">
+                    <div style="font-size:11px;color:#aaa;font-weight:700;margin-bottom:8px;">Nhập số (000–999):</div>
+                    <input type="number" id="jpInput" min="0" max="999"
+                           class="lt-jp-input mb-2" placeholder="Ví dụ: 042">
+                    <div id="jpPreview" style="font-size:13px;color:#aaa;text-align:center;margin-bottom:8px;display:none;"></div>
+                    <button class="lt-jp-buy-btn" id="jpBuyBtn" onclick="buyJackpot()">
+                        <i class="fas fa-bolt mr-1"></i> Mua Vé Jackpot · 500 Zoo
+                    </button>
+                </div>
+            }
+
+            @if (recentJackpot.Any())
+            {
+                <div class="mt-3">
+                    <div style="font-size:11px;color:#aaa;font-weight:700;margin-bottom:6px;"><i class="fas fa-trophy mr-1" style="color:#f6c23e;"></i> Jackpot gần đây:</div>
+                    <table class="table table-sm" style="color:#aaa;font-size:12px;margin-bottom:0;">
+                        <thead><tr><th>Thời gian</th><th>Số trúng</th><th>Vé</th><th>Giải</th></tr></thead>
+                        <tbody>
+                            @foreach (var d in recentJackpot)
+                            {
+                                <tr>
+                                    <td>@d.DrawnAt?.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                                    <td>@foreach (var n in d.WinningNumbers ?? []) { <span class="lt-result-num jp mr-1">@n.ToString("D3")</span> }</td>
+                                    <td>@d.TotalTickets</td>
+                                    <td style="color:#f6c23e;">@d.TotalPayout.ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- My history -->
+    @if (myHistory.Any())
+    {
+        <div class="lt-history">
+            <h6 class="mb-2" style="color:#fff;"><i class="fas fa-history mr-1"></i> Lịch sử vé của bạn</h6>
+            <table class="table table-sm" style="color:#aaa;font-size:12px;margin-bottom:0;">
+                <thead><tr><th>Loại</th><th>Thời gian</th><th>Số</th><th>Cược</th><th>Kết quả</th></tr></thead>
+                <tbody>
+                    @foreach (var item in myHistory)
+                    {
+                        dynamic h = item;
+                        <tr>
+                            <td>
+                                @switch ((string)h.draw_type)
+                                {
+                                    case "daily":   <span class="badge" style="background:#7b2d8b;color:#fff;">Ngày</span> break;
+                                    case "weekly":  <span class="badge" style="background:#1a3a8a;color:#fff;">Tuần</span> break;
+                                    default:        <span class="badge" style="background:#5a2e00;color:#f6c23e;">Jackpot</span> break;
+                                }
+                            </td>
+                            <td>@h.draw_at</td>
+                            <td><strong>@((string)h.draw_type == "jackpot" ? ((int)h.picked_number).ToString("D3") : ((int)h.picked_number).ToString("D2"))</strong></td>
+                            <td>@((long)h.bet_amount).ToString("N0")</td>
+                            <td>
+                                @if (h.is_winner == true)        { <span class="badge badge-success">+@((long)h.payout).ToString("N0")</span> }
+                                else if (h.is_winner == false)   { <span class="badge badge-danger">Trượt</span> }
+                                else                              { <span class="badge badge-secondary">Chờ</span> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+const CSRF        = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)[1];
+const DAILY_ID    = @daily.Id;
+const WEEKLY_ID   = @weekly.Id;
+const DAILY_MULT  = @daily.Multiplier;
+const WEEKLY_MULT = @weekly.Multiplier;
+const DAILY_DRAWAT  = @dailyDrawAt;
+const WEEKLY_DRAWAT = @weeklyDrawAt;
+const JP_DRAWAT     = @jpDrawAt;
+
+const BET_TIERS = [10, 100, 1000, 10000];
+let state = { daily: { pick: null, bet: 100 }, weekly: { pick: null, bet: 100 } };
+
+// ── Build number grids ───────────────────────────────────────────────────
+['daily','weekly'].forEach(type => {
+    const grid = document.getElementById(type + 'Grid');
+    if (!grid) return;
+    for (let n = 1; n <= 99; n++) {
+        const btn = document.createElement('button');
+        btn.className = 'lt-num-btn' + (type === 'weekly' ? ' weekly' : '');
+        btn.textContent = String(n).padStart(2,'0');
+        btn.onclick = () => selectNum(type, n);
+        grid.appendChild(btn);
+    }
+    const tiers = document.getElementById(type + 'Tiers');
+    BET_TIERS.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'lt-tier' + (type === 'weekly' ? ' weekly' : '') + (t === 100 ? ' sel' : '');
+        b.textContent = t.toLocaleString();
+        b.onclick = () => selectTier(type, t);
+        tiers.appendChild(b);
+    });
+});
+
+function selectNum(type, n) {
+    state[type].pick = n;
+    document.querySelectorAll(`#${type}Grid .lt-num-btn`).forEach((b, i) => {
+        b.classList.toggle('sel', i + 1 === n);
+    });
+    updatePreview(type);
+}
+function selectTier(type, t) {
+    state[type].bet = t;
+    document.querySelectorAll(`#${type}Tiers .lt-tier`).forEach(b => {
+        b.classList.toggle('sel', +b.textContent.replace(/,/g,'') === t);
+    });
+    updatePreview(type);
+}
+function updatePreview(type) {
+    const el = document.getElementById(type + 'Preview');
+    if (!el) return;
+    const s = state[type];
+    const mult = type === 'daily' ? DAILY_MULT : WEEKLY_MULT;
+    if (s.pick) {
+        const col = type === 'weekly' ? '#c084fc' : '#f0c040';
+        el.style.display = 'block';
+        el.innerHTML = `Số: <strong style="color:${col};">${String(s.pick).padStart(2,'0')}</strong> · Cược <strong>${s.bet.toLocaleString()}</strong> Zoo → Thắng <strong style="color:${col};">${(s.bet * mult).toLocaleString()}</strong> Zoo`;
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+// ── Buy ticket ───────────────────────────────────────────────────────────
+function buyTicket(type) {
+    const s   = state[type];
+    const id  = type === 'daily' ? DAILY_ID : WEEKLY_ID;
+    if (!s.pick) { alert('Chọn số trước.'); return; }
+    const btn = document.getElementById(type + 'BuyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Đang mua...';
+
+    fetch('/entertainment/lottery/ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+        body: JSON.stringify({ drawId: id, pickedNumber: s.pick, betAmount: s.bet }),
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.error) { alert(res.error); btn.disabled = false; btn.innerHTML = '<i class="fas fa-ticket-alt mr-1"></i> Mua Vé'; return; }
+        setBalance(res.balance);
+        const form = document.getElementById(type + 'Form');
+        if (form) form.innerHTML = `<div class="lt-bought${type==='weekly'?' weekly':''}"><i class="fas fa-check-circle mr-1"></i> Mua vé thành công! Số <strong>${String(s.pick).padStart(2,'0')}</strong> · Cược ${Number(s.bet).toLocaleString()} Zoo</div>`;
+    })
+    .catch(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-ticket-alt mr-1"></i> Mua Vé'; });
+}
+
+// ── Jackpot ──────────────────────────────────────────────────────────────
+const jpInput = document.getElementById('jpInput');
+if (jpInput) {
+    jpInput.addEventListener('input', function() {
+        const v = parseInt(this.value, 10);
+        const el = document.getElementById('jpPreview');
+        if (!isNaN(v) && v >= 0 && v <= 999) {
+            el.style.display = 'block';
+            el.innerHTML = `Số: <strong style="color:#f6c23e;">${String(v).padStart(3,'0')}</strong> · 500 Zoo → Trúng nhận <strong style="color:#f6c23e;" id="jpPotPreview">${document.getElementById('jpPotAmt').textContent}</strong> Zoo`;
+        } else {
+            el.style.display = 'none';
+        }
+    });
+}
+
+function buyJackpot() {
+    const inp = document.getElementById('jpInput');
+    if (!inp) return;
+    const v = parseInt(inp.value, 10);
+    if (isNaN(v) || v < 0 || v > 999) { alert('Nhập số từ 000 đến 999.'); return; }
+    const btn = document.getElementById('jpBuyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Đang mua...';
+
+    fetch('/entertainment/lottery/jackpot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+        body: JSON.stringify({ number: v }),
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.error) { alert(res.error); btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt mr-1"></i> Mua Vé Jackpot · 500 Zoo'; return; }
+        setBalance(res.balance);
+        document.getElementById('jpPotAmt').textContent = Number(res.pot).toLocaleString();
+        document.getElementById('jpFormArea').innerHTML = `<div style="text-align:center;padding:12px;background:rgba(246,194,62,.1);border:1px solid rgba(246,194,62,.3);border-radius:8px;color:#f6c23e;font-weight:800;">✅ Mua thành công! Số: <strong>${String(v).padStart(3,'0')}</strong></div>`;
+    })
+    .catch(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt mr-1"></i> Mua Vé Jackpot · 500 Zoo'; });
+}
+
+// ── Countdowns ───────────────────────────────────────────────────────────
+function fmtCountdown(s) {
+    if (s <= 0) return '00:00:00';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+function tick() {
+    const now = Math.floor(Date.now() / 1000);
+    const dcEl = document.getElementById('dailyClose');
+    const wcEl = document.getElementById('weeklyClose');
+    const jpEl = document.getElementById('jpCountdown');
+    if (dcEl && DAILY_DRAWAT)  dcEl.textContent  = fmtCountdown(Math.max(0, DAILY_DRAWAT  - 3600 - now));
+    if (wcEl && WEEKLY_DRAWAT) wcEl.textContent  = fmtCountdown(Math.max(0, WEEKLY_DRAWAT - now));
+    if (jpEl && JP_DRAWAT)     jpEl.textContent  = fmtCountdown(Math.max(0, JP_DRAWAT     - now));
+}
+tick(); setInterval(tick, 1000);
+
+function setBalance(n) {
+    const el = document.getElementById('balDisp');
+    if (el) el.textContent = Number(n).toLocaleString();
+    const nav = document.getElementById('nav-zcoin-balance');
+    if (nav) nav.textContent = Number(n).toLocaleString();
+}
+</script>
+}

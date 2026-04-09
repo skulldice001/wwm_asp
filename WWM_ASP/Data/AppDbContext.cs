@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BingoTable>        BingoTables        => Set<BingoTable>();
     public DbSet<TienLenTable>      TienLenTables      => Set<TienLenTable>();
     public DbSet<LotteryDraw>       LotteryDraws       => Set<LotteryDraw>();
+    public DbSet<LotteryTicket>     LotteryTickets     => Set<LotteryTicket>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
